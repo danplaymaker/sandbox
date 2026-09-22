@@ -30,6 +30,7 @@ import flowerParsFrag from './shaders/flower_pars.frag.glsl?raw';
 import flowerColorFrag from './shaders/flower_color.frag.glsl?raw';
 import groundParsFrag from './shaders/ground_pars.frag.glsl?raw';
 import groundColorFrag from './shaders/ground_color.frag.glsl?raw';
+import clampFrag from './shaders/clamp.frag.glsl?raw';
 
 const MAX_FLOWERS = 16;
 
@@ -197,6 +198,7 @@ export class GrassField {
       uGroundColorA: { value: new Color(cfg.colors.groundA) },
       uGroundColorB: { value: new Color(cfg.colors.groundB) },
       uGroundScale: { value: 0.6 },
+      uBloomClamp: { value: new Vector2(cfg.post.clampKnee ?? 1.2, cfg.post.clampMax ?? 2.0) },
       uShapeMask: { value: null },
       uShapeParams: { value: new Vector4(0.5, 0.035, 0.35, 2.2) }, // threshold, band, edgeNoise, noiseFreq
       uFieldSize: { value: new Vector2().fromArray(cfg.fieldSize) },
@@ -275,23 +277,24 @@ export class GrassField {
 
     const mat = new MeshPhysicalMaterial({
       color: 0xffffff,
-      roughness: 0.62,
+      roughness: 0.7,
       metalness: 0,
       side: DoubleSide,
-      sheen: 0.35,
-      sheenRoughness: 0.6,
+      sheen: 0.3,
+      sheenRoughness: 0.7,
       sheenColor: new Color('#b7d96b'),
-      specularIntensity: 0.55,
+      specularIntensity: 0.35,   // kept low: sub-pixel specular on moving blades is the main bloom-flicker source
       envMapIntensity: cfg.envIntensity,
     });
     mat.onBeforeCompile = (shader) => {
-      this._injectField(shader, grassParsVert, grassParsFrag);
+      this._injectField(shader, grassParsVert, grassParsFrag + '\n' + clampFrag);
       shader.vertexShader = shader.vertexShader
         .replace('#include <beginnormal_vertex>', grassBeginNormalVert)
         .replace('#include <begin_vertex>', grassBeginVert);
       shader.fragmentShader = shader.fragmentShader
         .replace('#include <color_fragment>', `#include <color_fragment>\n${grassColorFrag}`)
-        .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>\n${grassLightsFrag}`);
+        .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>\n${grassLightsFrag}`)
+        .replace('#include <opaque_fragment>', 'outgoingLight = softClampLuminance(outgoingLight);\n#include <opaque_fragment>');
     };
     // Shader source changes after compile are keyed by this so three re-links correctly.
     mat.customProgramCacheKey = () => 'grass-field-blade';
@@ -342,12 +345,13 @@ export class GrassField {
 
     const mat = new MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0, side: DoubleSide, envMapIntensity: cfg.envIntensity });
     mat.onBeforeCompile = (shader) => {
-      this._injectField(shader, flowerParsVert, flowerParsFrag);
+      this._injectField(shader, flowerParsVert, flowerParsFrag + '\n' + clampFrag);
       shader.vertexShader = shader.vertexShader
         .replace('#include <beginnormal_vertex>', flowerBeginNormalVert)
         .replace('#include <begin_vertex>', flowerBeginVert);
       shader.fragmentShader = shader.fragmentShader
-        .replace('#include <color_fragment>', `#include <color_fragment>\n${flowerColorFrag}`);
+        .replace('#include <color_fragment>', `#include <color_fragment>\n${flowerColorFrag}`)
+        .replace('#include <opaque_fragment>', 'outgoingLight = softClampLuminance(outgoingLight);\n#include <opaque_fragment>');
     };
     mat.customProgramCacheKey = () => 'grass-field-flower';
 
@@ -613,6 +617,7 @@ export class GrassField {
       u.uSSSColor.value.set(cfg.colors.sss); u.uSSSStrength.value = cfg.colors.sssStrength; u.uSSSPower.value = cfg.colors.sssPower;
     }
     if (partial.toneMappingExposure !== undefined) this.renderer.toneMappingExposure = cfg.toneMappingExposure;
+    if (partial.post) u.uBloomClamp.value.set(cfg.post.clampKnee, cfg.post.clampMax);
     if (partial.post && this.ready) { this.post?.dispose(); this._buildPost(); }
   }
 

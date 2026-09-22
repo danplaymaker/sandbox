@@ -25,9 +25,11 @@ export const defaultConfig = {
                             // buffer after each resolve, so bloom's additive blend onto it reads undefined memory
                             // on real GPUs (blank canvas). Software GL hides this.
     bloom: true,
-    bloomStrength: 0.18,
-    bloomRadius: 0.4,
-    bloomThreshold: 0.9,
+    bloomStrength: 0.14,
+    bloomRadius: 0.55,
+    bloomThreshold: 1.35,   // above ordinary sunlit grass (~1.0 linear) so only true highlights bloom
+    clampKnee: 1.2,         // soft luminance clamp on blade/flower output (see shaders/clamp.frag.glsl)
+    clampMax: 2.0,          // ceiling: flicker amplitude above the bloom threshold is bounded by clampMax - bloomThreshold
     ao: true,               // GTAO between blade clusters (costly; auto-disabled on low-power)
     aoIntensity: 0.9,
     dof: false,             // shallow depth of field

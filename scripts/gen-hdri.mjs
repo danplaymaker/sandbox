@@ -76,7 +76,8 @@ function radiance(dir) {
     const discCos = Math.cos(toRad(0.9));
     if (cosSun > discCos) {
       const edge = smooth(discCos, Math.cos(toRad(0.35)), cosSun);
-      out[0] += 60 * edge; out[1] += 54 * edge; out[2] += 42 * edge;
+      // Disc radiance kept moderate: a very bright disc reflects as sparkle on thin blades.
+      out[0] += 22 * edge; out[1] += 20 * edge; out[2] += 15.5 * edge;
     }
   } else {
     // Ground: neutral-ish meadow bounce so blades pick up green/brown from below.

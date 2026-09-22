@@ -5,6 +5,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+import { FXAAPass } from 'three/addons/postprocessing/FXAAPass.js';
 
 /**
  * Builds an EffectComposer chain: render -> GTAO -> bloom -> (DoF) -> output (tone map + sRGB).
@@ -13,8 +15,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
  */
 export function createPostFX(renderer, scene, camera, cfg, width, height) {
   if (!cfg.enabled) return null;
-  // MSAA on the composer's own target so blades stay crisp without the canvas antialias flag.
-  const target = new WebGLRenderTarget(width, height, { type: HalfFloatType, samples: cfg.msaa ?? 4 });
+  // NOTE: cfg.msaa defaults to 0 on purpose; see config.js. Anti-aliasing comes from SMAA/FXAA below.
+  const target = new WebGLRenderTarget(width, height, { type: HalfFloatType, samples: cfg.msaa ?? 0 });
   const composer = new EffectComposer(renderer, target);
   composer.setPixelRatio(renderer.getPixelRatio());
   composer.setSize(width, height);
@@ -46,7 +48,21 @@ export function createPostFX(renderer, scene, camera, cfg, width, height) {
     passes.dof = bokeh;
   }
 
+  if (cfg.antialias === 'smaa') {
+    // SMAA runs on the HDR buffer before tone mapping (matches three's own SMAA example).
+    const smaa = new SMAAPass();
+    composer.addPass(smaa);
+    passes.aa = smaa;
+  }
+
   composer.addPass(new OutputPass());
+
+  if (cfg.antialias === 'fxaa') {
+    // FXAA expects sRGB input, so it goes after the output pass.
+    const fxaa = new FXAAPass();
+    composer.addPass(fxaa);
+    passes.aa = fxaa;
+  }
 
   return {
     composer,
@@ -61,6 +77,7 @@ export function createPostFX(renderer, scene, camera, cfg, width, height) {
       passes.ao?.dispose?.();
       passes.bloom?.dispose?.();
       passes.dof?.dispose?.();
+      passes.aa?.dispose?.();
     },
   };
 }

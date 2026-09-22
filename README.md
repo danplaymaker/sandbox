@@ -72,9 +72,13 @@ relative to the viewer. Lighting comes from an equirectangular HDRI through `PMR
 (`sun.azimuth/elevation` must match `scripts/gen-hdri.mjs`). Shadows use a 2048² PCF map by
 default. The ground is a mottled `MeshStandardMaterial` plane that receives the shadows.
 
-**Post-processing.** `RenderPass → GTAOPass → UnrealBloomPass → (BokehPass) → OutputPass`
-on an MSAA half-float target. GTAO's normal pre-pass is patched to use the bending-aware
-normal materials. Everything under `post` can be switched off individually.
+**Post-processing.** `RenderPass → GTAOPass → UnrealBloomPass → (BokehPass) → SMAAPass →
+OutputPass` on a half-float target. GTAO's normal pre-pass is patched to use the
+bending-aware normal materials and its shader is hardened against NaN. Everything under
+`post` can be switched off individually. The composer target is deliberately not
+multisampled: three.js invalidates an MSAA buffer after each resolve, so bloom's additive
+blend onto it reads undefined memory on real GPUs and the canvas goes blank. Edge
+anti-aliasing comes from SMAA (or `antialias: 'fxaa'` / `'none'`) instead.
 
 ## Configuration
 
@@ -90,7 +94,7 @@ mount('#grass-field', {
   dprCap: 1.5,                  // biggest single perf lever after instanceCount
   shadows: 'medium',            // 'off' | 'low' | 'medium' | 'high'
   background: null,             // null = transparent canvas (page shows through); '#hex'; or 'hdri'
-  post: { enabled: true, ao: true, bloom: true, dof: false, msaa: 4 },
+  post: { enabled: true, ao: true, bloom: true, dof: false, antialias: 'smaa' },
   wind: { direction: [1, 0.35], speed: 0.55, strength: 0.22, scale: 0.32 },
   cursor: { radius: 1.15, strength: 0.55, smoothing: 0.18 },
   flowers: { max: 16, spawnInterval: 260, dwellMs: 90, bloomMs: 900, holdMs: 1400, wiltMs: 1300,
@@ -146,6 +150,7 @@ The default is **60 000 blades**. Reasoning:
 What to turn first when you need headroom (biggest win first):
 
 1. `dprCap` 1.5 → 1 (fill rate, especially with post enabled).
+1. `post.antialias: 'fxaa'` (cheaper than SMAA) or `'none'`.
 2. `post.ao: false` (GTAO is the most expensive pass), then `post.enabled: false`.
 3. `instanceCount` 60k → 30k. Density falls noticeably below ~25k for this area.
 4. `shadows: 'low'` or `'off'`.

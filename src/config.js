@@ -18,7 +18,10 @@ export const defaultConfig = {
   background: null,         // null = transparent canvas; or a CSS colour string; or 'hdri'
   post: {
     enabled: true,
-    msaa: 4,                // MSAA samples on the composer target (0 = off)
+    antialias: 'smaa',      // 'smaa' | 'fxaa' | 'none' — edge AA when post is on (canvas MSAA is unavailable with a composer)
+    msaa: 0,                // MSAA samples on the composer target. Keep 0: three.js invalidates a multisampled
+                            // buffer after each resolve, so bloom's additive blend onto it reads undefined memory
+                            // on real GPUs (blank canvas). Software GL hides this.
     bloom: true,
     bloomStrength: 0.18,
     bloomRadius: 0.4,

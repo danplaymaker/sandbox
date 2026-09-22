@@ -7,7 +7,8 @@ import { Matrix4, Quaternion, Vector3 } from 'three';
  *   - `uniformArray` (Vector4[]) -> uFlowers uniform shared with the grass shader
  */
 export class FlowerPool {
-  constructor(cfg, rng, mesh, uniformArray, states) {
+  constructor(cfg, rng, mesh, uniformArray, states, canSpawn = null) {
+    this.canSpawn = canSpawn;
     this.cfg = cfg;
     this.rng = rng;
     this.mesh = mesh;
@@ -36,7 +37,8 @@ export class FlowerPool {
       if (this.hoverStart === null) this.hoverStart = now;
       const dwelled = now - this.hoverStart >= cfg.dwellMs;
       const cooled = now - this.lastSpawnAt >= cfg.spawnInterval;
-      if (dwelled && cooled && this._farFromLive(cursor.x, cursor.z, cfg.spacing)) {
+      const allowed = !this.canSpawn || this.canSpawn(cursor.x, cursor.z);
+      if (dwelled && cooled && allowed && this._farFromLive(cursor.x, cursor.z, cfg.spacing)) {
         this._spawn(now, cursor.x, cursor.z);
       }
     } else {

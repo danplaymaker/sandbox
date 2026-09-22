@@ -11552,6 +11552,8 @@ var Dc = class {
 	fieldSize: [13, 8],
 	bladeHeight: [.28, .75],
 	bladeWidth: .045,
+	bladeLean: [0, 6],
+	bladeCross: !1,
 	clustering: .55,
 	seed: 1337,
 	dprCap: 1.5,
@@ -11619,6 +11621,7 @@ var Dc = class {
 		radius: .9,
 		strength: .5,
 		height: [.5, .8],
+		headScale: 1,
 		petalColors: [
 			"#ffd4e5",
 			"#fff5c2",
@@ -11641,7 +11644,43 @@ var Dc = class {
 		groundB: "#4a4128"
 	},
 	assets: { hdri: null },
-	mask: null,
+	shapeSource: null,
+	shapeDefaults: {
+		size: 12,
+		margin: .06,
+		resolution: 1024,
+		threshold: .5,
+		feather: .035,
+		edgeNoise: .35,
+		edgeNoiseScale: 2.2,
+		useLuminance: !1,
+		invert: !1,
+		ground: "shape"
+	},
+	topDown: {
+		camera: {
+			type: "orthographic",
+			tilt: 8,
+			padding: .3
+		},
+		sun: {
+			azimuth: 215,
+			elevation: 24
+		},
+		bladeLean: [12, 42],
+		bladeWidth: .06,
+		bladeHeight: [.28, .7],
+		clustering: .4,
+		cursor: {
+			radius: 1,
+			strength: .5
+		},
+		flowers: {
+			height: [.95, 1.2],
+			headScale: 1.7,
+			radius: .8
+		}
+	},
 	autoDetect: !0,
 	lowPower: {
 		instanceCount: 16e3,
@@ -11673,8 +11712,97 @@ var Mc = {
 	high: 4096
 };
 //#endregion
+//#region node_modules/three/examples/jsm/utils/BufferGeometryUtils.js
+function Nc(e, t = !1) {
+	let n = e[0].index !== null, r = new Set(Object.keys(e[0].attributes)), i = new Set(Object.keys(e[0].morphAttributes)), a = {}, o = {}, s = e[0].morphTargetsRelative, c = new Un(), l = 0;
+	for (let u = 0; u < e.length; ++u) {
+		let d = e[u], f = 0;
+		if (n !== (d.index !== null)) return console.error("THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index " + u + ". All geometries must have compatible attributes; make sure index attribute exists among all geometries, or in none of them."), null;
+		for (let e in d.attributes) {
+			if (!r.has(e)) return console.error("THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index " + u + ". All geometries must have compatible attributes; make sure \"" + e + "\" attribute exists among all geometries, or in none of them."), null;
+			a[e] === void 0 && (a[e] = []), a[e].push(d.attributes[e]), f++;
+		}
+		if (f !== r.size) return console.error("THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index " + u + ". Make sure all geometries have the same number of attributes."), null;
+		if (s !== d.morphTargetsRelative) return console.error("THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index " + u + ". .morphTargetsRelative must be consistent throughout all geometries."), null;
+		for (let e in d.morphAttributes) {
+			if (!i.has(e)) return console.error("THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index " + u + ".  .morphAttributes must be consistent throughout all geometries."), null;
+			o[e] === void 0 && (o[e] = []), o[e].push(d.morphAttributes[e]);
+		}
+		if (t) {
+			let e;
+			if (n) e = d.index.count;
+			else if (d.attributes.position !== void 0) e = d.attributes.position.count;
+			else return console.error("THREE.BufferGeometryUtils: .mergeGeometries() failed with geometry at index " + u + ". The geometry must have either an index or a position attribute"), null;
+			c.addGroup(l, e, u), l += e;
+		}
+	}
+	if (n) {
+		let t = 0, n = [];
+		for (let r = 0; r < e.length; ++r) {
+			let i = e[r].index;
+			for (let e = 0; e < i.count; ++e) n.push(i.getX(e) + t);
+			t += e[r].attributes.position.count;
+		}
+		c.setIndex(n);
+	}
+	for (let e in a) {
+		let t = Pc(a[e]);
+		if (!t) return console.error("THREE.BufferGeometryUtils: .mergeGeometries() failed while trying to merge the " + e + " attribute."), null;
+		c.setAttribute(e, t);
+	}
+	for (let e in o) {
+		let t = o[e][0].length;
+		if (t !== 0) {
+			c.morphAttributes = c.morphAttributes || {}, c.morphAttributes[e] = [];
+			for (let n = 0; n < t; ++n) {
+				let t = [];
+				for (let r = 0; r < o[e].length; ++r) t.push(o[e][r][n]);
+				let r = Pc(t);
+				if (!r) return console.error("THREE.BufferGeometryUtils: .mergeGeometries() failed while trying to merge the " + e + " morphAttribute."), null;
+				c.morphAttributes[e].push(r);
+			}
+		}
+	}
+	return c;
+}
+function Pc(e) {
+	let t, n, r, i = -1, a = 0;
+	for (let o = 0; o < e.length; ++o) {
+		let s = e[o];
+		if (t === void 0 && (t = s.array.constructor), t !== s.array.constructor) return console.error("THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.array must be of consistent array types across matching attributes."), null;
+		if (n === void 0 && (n = s.itemSize), n !== s.itemSize) return console.error("THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.itemSize must be consistent across matching attributes."), null;
+		if (r === void 0 && (r = s.normalized), r !== s.normalized) return console.error("THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.normalized must be consistent across matching attributes."), null;
+		if (i === -1 && (i = s.gpuType), i !== s.gpuType) return console.error("THREE.BufferGeometryUtils: .mergeAttributes() failed. BufferAttribute.gpuType must be consistent across matching attributes."), null;
+		a += s.count * n;
+	}
+	let o = new t(a), s = new On(o, n, r), c = 0;
+	for (let t = 0; t < e.length; ++t) {
+		let r = e[t];
+		if (r.isInterleavedBufferAttribute) {
+			let e = c / n;
+			for (let t = 0, i = r.count; t < i; t++) for (let i = 0; i < n; i++) {
+				let n = r.getComponent(t, i);
+				s.setComponent(t + e, i, n);
+			}
+		} else o.set(r.array, c);
+		c += r.count * n;
+	}
+	return i !== void 0 && (s.gpuType = i), s;
+}
+//#endregion
 //#region src/geometry/bladeGeometry.js
-function Nc({ segments: e = 5, width: t = .045, curve: n = .12, crease: r = .25 } = {}) {
+function Fc({ segments: e = 5, width: t = .045, curve: n = .12, crease: r = .25, cross: i = !1 } = {}) {
+	let a = Ic({
+		segments: e,
+		width: t,
+		curve: n,
+		crease: r
+	});
+	if (!i) return a;
+	let o = a.clone().rotateY(Math.PI / 2), s = Nc([a, o], !1);
+	return a.dispose(), o.dispose(), s.computeBoundingSphere(), s;
+}
+function Ic({ segments: e, width: t, curve: n, crease: r }) {
 	let i = [], a = [], o = [], s = [], c = e + 1;
 	for (let s = 0; s < c; s++) {
 		let l = s / e, u = l, d = t * .5 * (1 - l ** 1.6) * (1 - .15 * l), f = n * l * l;
@@ -11696,53 +11824,54 @@ function Nc({ segments: e = 5, width: t = .045, curve: n = .12, crease: r = .25 
 }
 //#endregion
 //#region src/geometry/flowerGeometry.js
-function Pc({ petals: e = 6, petalLength: t = .16, petalWidth: n = .075, stemWidth: r = .022 } = {}) {
-	let i = [], a = [], o = [], s = [], c = [], l = 0, u = (e, t, n, r, c, u, d, f, p, m) => (i.push(e, t, n), a.push(r, c, u), o.push(d, f), s.push(p, m), l++);
+function Lc({ petals: e = 6, petalLength: t = .16, petalWidth: n = .075, stemWidth: r = .022, headScale: i = 1 } = {}) {
+	t *= i, n *= i;
+	let a = [], o = [], s = [], c = [], l = [], u = 0, d = (e, t, n, r, i, l, d, f, p, m) => (a.push(e, t, n), o.push(r, i, l), s.push(d, f), c.push(p, m), u++);
 	for (let e = 0; e < 2; e++) {
-		let t = e * Math.PI * .5, n = Math.cos(t) * r * .5, i = Math.sin(t) * r * .5, a = -Math.sin(t), o = Math.cos(t), s = l;
+		let t = e * Math.PI * .5, n = Math.cos(t) * r * .5, i = Math.sin(t) * r * .5, a = -Math.sin(t), o = Math.cos(t), s = u;
 		for (let e = 0; e <= 4; e++) {
 			let t = e / 4, r = 1 - .35 * t;
-			u(-n * r, t, -i * r, a, 0, o, 0, t, 0, t), u(n * r, t, i * r, a, 0, o, 1, t, 0, t);
+			d(-n * r, t, -i * r, a, 0, o, 0, t, 0, t), d(n * r, t, i * r, a, 0, o, 1, t, 0, t);
 		}
 		for (let e = 0; e < 4; e++) {
 			let t = s + e * 2;
-			c.push(t, t + 1, t + 2, t + 1, t + 3, t + 2);
+			l.push(t, t + 1, t + 2, t + 1, t + 3, t + 2);
 		}
 	}
 	for (let r = 0; r < e; r++) {
-		let i = r / e * Math.PI * 2, a = Math.cos(i), o = Math.sin(i), s = -o, d = a, f = l;
+		let i = r / e * Math.PI * 2, a = Math.cos(i), o = Math.sin(i), s = -o, c = a, f = u;
 		for (let e = 0; e <= 3; e++) {
-			let r = e / 3, i = .02 + r * t, c = n * .5 * Math.sin(Math.PI * Math.min(1, .15 + r * .9));
-			u(a * i - s * c, 1, o * i - d * c, 0, 1, 0, 0, r, 1, r), u(a * i + s * c, 1, o * i + d * c, 0, 1, 0, 1, r, 1, r);
+			let r = e / 3, i = .02 + r * t, l = n * .5 * Math.sin(Math.PI * Math.min(1, .15 + r * .9));
+			d(a * i - s * l, 1, o * i - c * l, 0, 1, 0, 0, r, 1, r), d(a * i + s * l, 1, o * i + c * l, 0, 1, 0, 1, r, 1, r);
 		}
 		for (let e = 0; e < 3; e++) {
 			let t = f + e * 2;
-			c.push(t, t + 2, t + 1, t + 1, t + 2, t + 3);
+			l.push(t, t + 1, t + 2, t + 1, t + 3, t + 2);
 		}
 	}
-	let d = .035, f = u(0, 1.012, 0, 0, 1, 0, .5, .5, 2, 0), p = [];
+	let f = .035 * i, p = d(0, 1.012, 0, 0, 1, 0, .5, .5, 2, 0), m = [];
 	for (let e = 0; e < 8; e++) {
 		let t = e / 8 * Math.PI * 2;
-		p.push(u(Math.cos(t) * d, 1.008, Math.sin(t) * d, 0, 1, 0, .5 + Math.cos(t) * .5, .5 + Math.sin(t) * .5, 2, 1));
+		m.push(d(Math.cos(t) * f, 1.008, Math.sin(t) * f, 0, 1, 0, .5 + Math.cos(t) * .5, .5 + Math.sin(t) * .5, 2, 1));
 	}
-	for (let e = 0; e < 8; e++) c.push(f, p[(e + 1) % 8], p[e]);
+	for (let e = 0; e < 8; e++) l.push(p, m[(e + 1) % 8], m[e]);
 	{
-		let e = l, t = .9, n = Math.cos(t), r = Math.sin(t), i = -r, a = n;
+		let e = u, t = .9, n = Math.cos(t), r = Math.sin(t), i = -r, a = n;
 		for (let e = 0; e <= 2; e++) {
 			let t = e / 2, o = t * .14, s = .025 * Math.sin(Math.PI * Math.min(1, .1 + t * .9)), c = .42 + t * .05;
-			u(n * o - i * s, c, r * o - a * s, 0, 1, 0, 0, t, 3, t), u(n * o + i * s, c, r * o + a * s, 0, 1, 0, 1, t, 3, t);
+			d(n * o - i * s, c, r * o - a * s, 0, 1, 0, 0, t, 3, t), d(n * o + i * s, c, r * o + a * s, 0, 1, 0, 1, t, 3, t);
 		}
 		for (let t = 0; t < 2; t++) {
 			let n = e + t * 2;
-			c.push(n, n + 2, n + 1, n + 1, n + 2, n + 3);
+			l.push(n, n + 1, n + 2, n + 1, n + 3, n + 2);
 		}
 	}
-	let m = new Un();
-	return m.setAttribute("position", new jn(i, 3)), m.setAttribute("normal", new jn(a, 3)), m.setAttribute("uv", new jn(o, 2)), m.setAttribute("aPart", new jn(s, 2)), m.setIndex(c), m.computeBoundingSphere(), m;
+	let h = new Un();
+	return h.setAttribute("position", new jn(a, 3)), h.setAttribute("normal", new jn(o, 3)), h.setAttribute("uv", new jn(s, 2)), h.setAttribute("aPart", new jn(c, 2)), h.setIndex(l), h.computeBoundingSphere(), h;
 }
 //#endregion
 //#region src/scatter.js
-function Fc(e) {
+function Rc(e) {
 	let t = e >>> 0;
 	return () => {
 		t = t + 1831565813 >>> 0;
@@ -11750,98 +11879,152 @@ function Fc(e) {
 		return e = Math.imul(e ^ e >>> 15, e | 1), e ^= e + Math.imul(e ^ e >>> 7, e | 61), ((e ^ e >>> 14) >>> 0) / 4294967296;
 	};
 }
-function Ic(e, t, n) {
+function zc(e, t, n) {
 	let r = Math.sin(e * 127.1 + t * 311.7 + n * .37) * 43758.5453;
 	return r - Math.floor(r);
 }
-function Lc(e, t, n) {
-	let r = Math.floor(e), i = Math.floor(t), a = e - r, o = t - i, s = a * a * (3 - 2 * a), c = o * o * (3 - 2 * o), l = Ic(r, i, n), u = Ic(r + 1, i, n), d = Ic(r, i + 1, n), f = Ic(r + 1, i + 1, n);
+function Bc(e, t, n) {
+	let r = Math.floor(e), i = Math.floor(t), a = e - r, o = t - i, s = a * a * (3 - 2 * a), c = o * o * (3 - 2 * o), l = zc(r, i, n), u = zc(r + 1, i, n), d = zc(r, i + 1, n), f = zc(r + 1, i + 1, n);
 	return l + (u - l) * s + (d - l) * c + (l - u - d + f) * s * c;
 }
-function Rc(e, t, n, r = 4) {
+function Vc(e, t, n, r = 4) {
 	let i = 0, a = .5, o = 1;
-	for (let s = 0; s < r; s++) i += a * Lc(e * o, t * o, n), a *= .5, o *= 2.03;
+	for (let s = 0; s < r; s++) i += a * Bc(e * o, t * o, n), a *= .5, o *= 2.03;
 	return i;
 }
-function zc({ count: e, fieldSize: t, bladeHeight: n, clustering: r, seed: i, mask: a = null }) {
-	let o = Fc(i), [s, c] = t, l = new Float32Array(e * 16), u = new Float32Array(e * 4), d = new st(), f = new J(), p = new ze(), m = new J(), h = new J(0, 1, 0), g = 0, _ = 0, v = e * 40, y = .55;
-	for (; g < e && _ < v;) {
-		_++;
-		let e = (o() - .5) * s, t = (o() - .5) * c, v = Rc(e * y + 10, t * y + 20, i), b = 1 - r + r * Math.max(0, (v - .25) / .6) ** 1.5 * 1.6;
-		if (o() > b) continue;
+var Hc = new ze(), Uc = new J(1, 0, 0);
+function Wc({ count: e, fieldSize: t, bladeHeight: n, clustering: r, seed: i, mask: a = null, lean: o = [0, 5] }) {
+	let s = Rc(i), [c, l] = t, u = new Float32Array(e * 16), d = new Float32Array(e * 4), f = new st(), p = new J(), m = new ze(), h = new J(), g = new J(0, 1, 0), _ = 0, v = 0, y = e * 40, b = .55;
+	for (; _ < e && v < y;) {
+		v++;
+		let e = (s() - .5) * c, t = (s() - .5) * l, y = Vc(e * b + 10, t * b + 20, i), x = 1 - r + r * Math.max(0, (y - .25) / .6) ** 1.5 * 1.6;
+		if (s() > x) continue;
 		if (a) {
-			let n = a.sample(e / s + .5, t / c + .5);
-			if (n <= .02 || o() > n) continue;
+			let n = a.coverage(e / c + .5, t / l + .5, e, t);
+			if (n <= .001 || s() > n) continue;
 		}
-		let x = o() ** .8 * .7 + v * .3, S = n[0] + (n[1] - n[0]) * x, C = o() * Math.PI * 2, w = (o() - .5) * .18;
-		if (f.set(e, 0, t), p.setFromAxisAngle(h, C), w !== 0) {
-			let e = new ze().setFromAxisAngle(new J(1, 0, 0), w);
-			p.multiply(e);
-		}
-		m.setScalar(S), d.compose(f, p, m), d.toArray(l, g * 16);
-		let T = g * 4;
-		u[T + 0] = o(), u[T + 1] = .3 + o() * .7, u[T + 2] = Math.min(1, Math.max(0, v * .5 + o() * .5)), u[T + 3] = x, g++;
+		let S = s() ** .8 * .7 + y * .3, C = n[0] + (n[1] - n[0]) * S, w = s() * Math.PI * 2, T = (o[0] + (o[1] - o[0]) * s() ** .7) * Math.PI / 180;
+		p.set(e, 0, t), m.setFromAxisAngle(g, w), T !== 0 && m.multiply(Hc.setFromAxisAngle(Uc, T)), h.setScalar(C), f.compose(p, m, h), f.toArray(u, _ * 16);
+		let E = _ * 4;
+		d[E + 0] = s(), d[E + 1] = .3 + s() * .7, d[E + 2] = Math.min(1, Math.max(0, y * .5 + s() * .5)), d[E + 3] = S, _++;
 	}
 	return {
-		matrices: l.subarray(0, g * 16),
-		bladeData: u.subarray(0, g * 4),
-		count: g
+		matrices: u.subarray(0, _ * 16),
+		bladeData: d.subarray(0, _ * 4),
+		count: _
 	};
 }
-async function Bc(e, t) {
-	let n = e.resolution || 512, r = t[0] / t[1], i = n, a = Math.max(8, Math.round(n / r)), o = document.createElement("canvas");
-	o.width = i, o.height = a;
-	let s = o.getContext("2d", { willReadFrequently: !0 });
-	s.clearRect(0, 0, i, a);
-	let c = e.padding ?? .06;
+//#endregion
+//#region src/shape.js
+async function Gc(e) {
+	let t = await Kc(e, e.resolution || 1024), { image: n, width: r, height: i } = t, a = document.createElement("canvas");
+	a.width = r, a.height = i;
+	let o = a.getContext("2d", { willReadFrequently: !0 });
+	o.clearRect(0, 0, r, i), t.text ? (o.fillStyle = "#fff", o.textAlign = "center", o.textBaseline = "middle", o.font = t.font, o.fillText(t.text, r / 2, i / 2)) : o.drawImage(n, 0, 0, r, i);
+	let s = o.getImageData(0, 0, r, i).data, c = new Float32Array(r * i);
+	for (let t = 0; t < r * i; t++) {
+		let n = s[t * 4 + 3] / 255, r = (.299 * s[t * 4] + .587 * s[t * 4 + 1] + .114 * s[t * 4 + 2]) / 255, i = e.useLuminance ? r * n : n;
+		e.invert && (i = 1 - i), c[t] = i;
+	}
+	let l = r, d = -1, f = i, m = -1;
+	for (let e = 0; e < i; e++) for (let t = 0; t < r; t++) c[e * r + t] > .02 && (t < l && (l = t), t > d && (d = t), e < f && (f = e), e > m && (m = e));
+	if (d < 0) throw Error("shape mask is empty (no opaque pixels found)");
+	let g = Math.max(d - l + 1, m - f + 1), _ = Math.round((e.margin ?? .06) * g);
+	l = Math.max(0, l - _), f = Math.max(0, f - _), d = Math.min(r - 1, d + _), m = Math.min(i - 1, m + _);
+	let v = d - l + 1, y = m - f + 1, b = new Float32Array(v * y);
+	for (let e = 0; e < y; e++) for (let t = 0; t < v; t++) b[e * v + t] = c[(e + f) * r + (t + l)];
+	let x = Math.max(v, y), S = Math.max(1, Math.round((e.feather ?? .035) * x)), C = qc(qc(b, v, y, S), v, y, Math.max(1, S >> 1)), w = e.size ?? 12, T = v / y, D = T >= 1 ? [w, w / T] : [w * T, w], O = new gr(Uint8Array.from(C, (e) => Math.round(Math.min(1, Math.max(0, e)) * 255)), v, y, E, h);
+	O.minFilter = p, O.magFilter = p, O.wrapS = O.wrapT = u, O.needsUpdate = !0;
+	let ee = e.threshold ?? .5, k = e.feather ?? .035, A = e.edgeNoise ?? .35, j = e.edgeNoiseScale ?? 2.2, M = e.seed ?? 7, N = (e, t) => {
+		let n = Math.min(v - 1, Math.max(0, Math.floor(e * v))), r = Math.min(y - 1, Math.max(0, Math.floor(t * y)));
+		return C[r * v + n];
+	}, P = (e, t, n, r) => {
+		let i = (Vc(n * j + 31, r * j + 17, M, 3) - .5) * A, a = (N(e, t) + i - (ee - k)) / (2 * k), o = Math.min(1, Math.max(0, a));
+		return o * o * (3 - 2 * o);
+	};
+	return {
+		width: v,
+		height: y,
+		aspect: T,
+		fieldSize: D,
+		texture: O,
+		threshold: ee,
+		band: k,
+		edgeNoise: A,
+		noiseFreq: j,
+		sample: N,
+		coverage: P,
+		inside: (e, t, n, r) => P(e, t, n, r) >= .5,
+		dispose() {
+			O.dispose();
+		}
+	};
+}
+async function Kc(e, t) {
 	if (e.text) {
-		s.fillStyle = "#fff", s.textAlign = "center", s.textBaseline = "middle";
-		let t = e.font || "900 sans-serif", n = (e) => {
-			s.font = /\d+(\.\d+)?px/.test(t) ? t.replace(/\d+(\.\d+)?px/, `${e}px`) : t.replace(/(\S+)$/, `${e}px $1`);
-		}, r = a * .8;
-		for (n(r); s.measureText(e.text).width > i * (1 - c * 2) && r > 4;) r *= .92, n(r);
-		s.fillText(e.text, i / 2, a / 2);
-	} else if (e.image) {
-		let t = await new Promise((t, n) => {
-			let r = new Image();
-			r.crossOrigin = "anonymous", r.onload = () => t(r), r.onerror = n, r.src = e.image;
-		}), n = t.naturalWidth || t.width, r = t.naturalHeight || t.height, o = Math.min(i * (1 - c * 2) / n, a * (1 - c * 2) / r), l = n * o, u = r * o;
-		s.drawImage(t, (i - l) / 2, (a - u) / 2, l, u);
+		let n = e.font || "900 sans-serif", r = document.createElement("canvas").getContext("2d"), i = (e) => {
+			r.font = /\d+(\.\d+)?px/.test(n) ? n.replace(/\d+(\.\d+)?px/, `${e}px`) : n.replace(/(\S+)$/, `${e}px $1`);
+		};
+		i(100);
+		let a = r.measureText(e.text), o = a.width, s = a.actualBoundingBoxAscent + a.actualBoundingBoxDescent || 75, c = 1.15, l = t / (Math.max(o, s) * c), u = Math.round(o * c * l), d = Math.round(s * c * l);
+		return i(100 * l), {
+			text: e.text,
+			font: r.font,
+			width: u,
+			height: d
+		};
 	}
-	let l = s.getImageData(0, 0, i, a).data, u = new Float32Array(i * a);
-	for (let t = 0; t < i * a; t++) {
-		let n = l[t * 4 + 3] / 255, r = (l[t * 4] + l[t * 4 + 1] + l[t * 4 + 2]) / 765;
-		u[t] = e.image && e.useLuminance ? r * n : n;
-	}
-	let d = e.feather ?? 2, f = d > 0 ? Vc(u, i, a, d) : u, p = !!e.invert;
-	return {
-		width: i,
-		height: a,
-		sample(e, t) {
-			let n = Math.min(i - 1, Math.max(0, Math.floor(e * i))), r = Math.min(a - 1, Math.max(0, Math.floor(t * a))), o = f[r * i + n];
-			return p ? 1 - o : o;
+	let n = e.image || e.svg;
+	if (!n) throw Error("shapeSource needs one of: svg (URL or inline markup), image (URL), text");
+	let r = null;
+	if (e.svg) {
+		let i = e.svg.trim().startsWith("<") ? e.svg : await (await fetch(e.svg, { mode: "cors" })).text(), a = i.match(/viewBox\s*=\s*["']\s*([-\d.eE]+)[\s,]+([-\d.eE]+)[\s,]+([-\d.eE]+)[\s,]+([-\d.eE]+)\s*["']/i), o = a ? parseFloat(a[3]) : NaN, s = a ? parseFloat(a[4]) : NaN;
+		if (!(o > 0 && s > 0)) {
+			let e = i.match(/<svg[^>]*\swidth\s*=\s*["']([\d.]+)/i), t = i.match(/<svg[^>]*\sheight\s*=\s*["']([\d.]+)/i);
+			o = e ? parseFloat(e[1]) : 300, s = t ? parseFloat(t[1]) : 150, a || (i = i.replace(/<svg/i, `<svg viewBox="0 0 ${o} ${s}"`));
 		}
+		let c = t / Math.max(o, s), l = Math.max(1, Math.round(o * c)), u = Math.max(1, Math.round(s * c));
+		i = i.replace(/<svg([^>]*?)\s(width|height)\s*=\s*["'][^"']*["']/gi, "<svg$1").replace(/<svg([^>]*?)\s(width|height)\s*=\s*["'][^"']*["']/gi, "<svg$1"), i = i.replace(/<svg/i, `<svg width="${l}" height="${u}"`), /xmlns\s*=/.test(i) || (i = i.replace(/<svg/i, "<svg xmlns=\"http://www.w3.org/2000/svg\"")), r = URL.createObjectURL(new Blob([i], { type: "image/svg+xml" })), n = r;
+	}
+	let i = await new Promise((t, r) => {
+		let i = new Image();
+		i.crossOrigin = "anonymous", i.onload = () => t(i), i.onerror = () => r(/* @__PURE__ */ Error(`shape image failed to load: ${e.image || e.svg}`)), i.src = n;
+	});
+	r && URL.revokeObjectURL(r);
+	let a = i.naturalWidth || i.width, o = i.naturalHeight || i.height, s = t / Math.max(a, o);
+	return {
+		image: i,
+		width: Math.max(1, Math.round(a * s)),
+		height: Math.max(1, Math.round(o * s))
 	};
 }
-function Vc(e, t, n, r) {
+function qc(e, t, n, r) {
 	let i = new Float32Array(t * n), a = new Float32Array(t * n), o = r * 2 + 1;
-	for (let a = 0; a < n; a++) for (let n = 0; n < t; n++) {
-		let s = 0;
-		for (let i = -r; i <= r; i++) s += e[a * t + Math.min(t - 1, Math.max(0, n + i))];
-		i[a * t + n] = s / o;
+	for (let a = 0; a < n; a++) {
+		let n = 0;
+		for (let i = -r; i <= r; i++) n += e[a * t + Math.min(t - 1, Math.max(0, i))];
+		for (let s = 0; s < t; s++) {
+			i[a * t + s] = n / o;
+			let c = Math.min(t - 1, Math.max(0, s - r)), l = Math.min(t - 1, Math.max(0, s + r + 1));
+			n += e[a * t + l] - e[a * t + c];
+		}
 	}
-	for (let e = 0; e < n; e++) for (let s = 0; s < t; s++) {
-		let c = 0;
-		for (let a = -r; a <= r; a++) c += i[Math.min(n - 1, Math.max(0, e + a)) * t + s];
-		a[e * t + s] = c / o;
+	for (let e = 0; e < t; e++) {
+		let s = 0;
+		for (let a = -r; a <= r; a++) s += i[Math.min(n - 1, Math.max(0, a)) * t + e];
+		for (let c = 0; c < n; c++) {
+			a[c * t + e] = s / o;
+			let l = Math.min(n - 1, Math.max(0, c - r)), u = Math.min(n - 1, Math.max(0, c + r + 1));
+			s += i[u * t + e] - i[l * t + e];
+		}
 	}
 	return a;
 }
 //#endregion
 //#region src/flowers.js
-var Hc = class {
-	constructor(e, t, n, r, i) {
-		this.cfg = e, this.rng = t, this.mesh = n, this.uniformArray = r, this.max = Math.min(e.max, 16), this.slots = [];
+var Jc = class {
+	constructor(e, t, n, r, i, a = null) {
+		this.canSpawn = a, this.cfg = e, this.rng = t, this.mesh = n, this.uniformArray = r, this.max = Math.min(e.max, 16), this.slots = [];
 		for (let e = 0; e < this.max; e++) this.slots.push({
 			alive: !1,
 			x: 0,
@@ -11861,18 +12044,18 @@ var Hc = class {
 		let r = this.cfg;
 		if (r.enabled && n && t) {
 			this.hoverStart === null && (this.hoverStart = e);
-			let n = e - this.hoverStart >= r.dwellMs, i = e - this.lastSpawnAt >= r.spawnInterval;
-			n && i && this._farFromLive(t.x, t.z, r.spacing) && this._spawn(e, t.x, t.z);
+			let n = e - this.hoverStart >= r.dwellMs, i = e - this.lastSpawnAt >= r.spawnInterval, a = !this.canSpawn || this.canSpawn(t.x, t.z);
+			n && i && a && this._farFromLive(t.x, t.z, r.spacing) && this._spawn(e, t.x, t.z);
 		} else this.hoverStart = null;
 		for (let i = 0; i < this.max; i++) {
 			let a = this.slots[i];
 			if (a.alive) {
 				let i = n && t && Math.hypot(t.x - a.x, t.z - a.z) < r.holdRadius, o = e - a.phaseT0;
-				if (a.phase === "bloom") a.bloom = Uc(Math.min(1, o / r.bloomMs)), o >= r.bloomMs && (a.phase = "hold", a.phaseT0 = e, a.bloom = 1);
+				if (a.phase === "bloom") a.bloom = Yc(Math.min(1, o / r.bloomMs)), o >= r.bloomMs && (a.phase = "hold", a.phaseT0 = e, a.bloom = 1);
 				else if (a.phase === "hold") i ? a.phaseT0 = e : o >= r.holdMs && (a.phase = "wilt", a.phaseT0 = e);
 				else if (a.phase === "wilt") {
 					let e = Math.min(1, o / r.wiltMs);
-					a.wilt = Wc(e), a.bloom = 1 - e ** 3 * .999, e >= 1 && (a.alive = !1, a.phase = "dead", a.bloom = 0, a.wilt = 0);
+					a.wilt = Xc(e), a.bloom = 1 - e ** 3 * .999, e >= 1 && (a.alive = !1, a.phase = "dead", a.bloom = 0, a.wilt = 0);
 				}
 			}
 			let o = i * 4, s = a.alive ? a.bloom : 0;
@@ -11901,15 +12084,15 @@ var Hc = class {
 		return this.slots.filter((e) => e.alive).length;
 	}
 };
-function Uc(e) {
+function Yc(e) {
 	return 1 + 2.4 * (e - 1) ** 3 + 1.4 * (e - 1) ** 2;
 }
-function Wc(e) {
+function Xc(e) {
 	return e < .5 ? 4 * e * e * e : 1 - (-2 * e + 2) ** 3 / 2;
 }
 //#endregion
 //#region node_modules/three/examples/jsm/shaders/CopyShader.js
-var Gc = {
+var Zc = {
 	name: "CopyShader",
 	uniforms: {
 		tDiffuse: { value: null },
@@ -11917,7 +12100,7 @@ var Gc = {
 	},
 	vertexShader: "\n\n		varying vec2 vUv;\n\n		void main() {\n\n			vUv = uv;\n			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );\n\n		}",
 	fragmentShader: "\n\n		uniform float opacity;\n\n		uniform sampler2D tDiffuse;\n\n		varying vec2 vUv;\n\n		void main() {\n\n			vec4 texel = texture2D( tDiffuse, vUv );\n			gl_FragColor = opacity * texel;\n\n\n		}"
-}, Kc = class {
+}, Qc = class {
 	constructor() {
 		this.isPass = !0, this.enabled = !0, this.needsSwap = !0, this.clear = !1, this.renderToScreen = !1;
 	}
@@ -11926,7 +12109,7 @@ var Gc = {
 		console.error("THREE.Pass: .render() must be implemented in derived pass.");
 	}
 	dispose() {}
-}, qc = new Li(-1, 1, 1, -1, 0, 1), Jc = new class extends Un {
+}, $c = new Li(-1, 1, 1, -1, 0, 1), el = new class extends Un {
 	constructor() {
 		super(), this.setAttribute("position", new jn([
 			-1,
@@ -11947,15 +12130,15 @@ var Gc = {
 			0
 		], 2));
 	}
-}(), Yc = class {
+}(), tl = class {
 	constructor(e) {
-		this._mesh = new pr(Jc, e);
+		this._mesh = new pr(el, e);
 	}
 	dispose() {
 		this._mesh.geometry.dispose();
 	}
 	render(e) {
-		e.render(this._mesh, qc);
+		e.render(this._mesh, $c);
 	}
 	get material() {
 		return this._mesh.material;
@@ -11963,7 +12146,7 @@ var Gc = {
 	set material(e) {
 		this._mesh.material = e;
 	}
-}, Xc = class extends Kc {
+}, nl = class extends Qc {
 	constructor(e, t = "tDiffuse") {
 		super(), this.textureID = t, this.uniforms = null, this.material = null, e instanceof Wr ? (this.uniforms = e.uniforms, this.material = e) : e && (this.uniforms = Vr.clone(e.uniforms), this.material = new Wr({
 			name: e.name === void 0 ? "unspecified" : e.name,
@@ -11971,7 +12154,7 @@ var Gc = {
 			uniforms: this.uniforms,
 			vertexShader: e.vertexShader,
 			fragmentShader: e.fragmentShader
-		})), this._fsQuad = new Yc(this.material);
+		})), this._fsQuad = new tl(this.material);
 	}
 	render(e, t, n) {
 		this.uniforms[this.textureID] && (this.uniforms[this.textureID].value = n.texture), this._fsQuad.material = this.material, this.renderToScreen ? (e.setRenderTarget(null), this._fsQuad.render(e)) : (e.setRenderTarget(t), this.clear && e.clear(e.autoClearColor, e.autoClearDepth, e.autoClearStencil), this._fsQuad.render(e));
@@ -11979,7 +12162,7 @@ var Gc = {
 	dispose() {
 		this.material.dispose(), this._fsQuad.dispose();
 	}
-}, Zc = class extends Kc {
+}, rl = class extends Qc {
 	constructor(e, t) {
 		super(), this.scene = e, this.camera = t, this.clear = !0, this.needsSwap = !1, this.inverse = !1;
 	}
@@ -11989,20 +12172,20 @@ var Gc = {
 		let a, o;
 		this.inverse ? (a = 0, o = 1) : (a = 1, o = 0), i.buffers.stencil.setTest(!0), i.buffers.stencil.setOp(r.REPLACE, r.REPLACE, r.REPLACE), i.buffers.stencil.setFunc(r.ALWAYS, a, 4294967295), i.buffers.stencil.setClear(o), i.buffers.stencil.setLocked(!0), e.setRenderTarget(n), this.clear && e.clear(), e.render(this.scene, this.camera), e.setRenderTarget(t), this.clear && e.clear(), e.render(this.scene, this.camera), i.buffers.color.setLocked(!1), i.buffers.depth.setLocked(!1), i.buffers.color.setMask(!0), i.buffers.depth.setMask(!0), i.buffers.stencil.setLocked(!1), i.buffers.stencil.setFunc(r.EQUAL, 1, 4294967295), i.buffers.stencil.setOp(r.KEEP, r.KEEP, r.KEEP), i.buffers.stencil.setLocked(!0);
 	}
-}, Qc = class extends Kc {
+}, il = class extends Qc {
 	constructor() {
 		super(), this.needsSwap = !1;
 	}
 	render(e) {
 		e.state.buffers.stencil.setLocked(!1), e.state.buffers.stencil.setTest(!1);
 	}
-}, $c = class {
+}, al = class {
 	constructor(e, t) {
 		if (this.renderer = e, this._pixelRatio = e.getPixelRatio(), t === void 0) {
 			let n = e.getSize(new q());
 			this._width = n.width, this._height = n.height, t = new it(this._width * this._pixelRatio, this._height * this._pixelRatio, { type: y }), t.texture.name = "EffectComposer.rt1";
 		} else this._width = t.width, this._height = t.height;
-		this.renderTarget1 = t, this.renderTarget2 = t.clone(), this.renderTarget2.texture.name = "EffectComposer.rt2", this.writeBuffer = this.renderTarget1, this.readBuffer = this.renderTarget2, this.renderToScreen = !0, this.passes = [], this.copyPass = new Xc(Gc), this.copyPass.material.blending = 0, this.timer = new Wi();
+		this.renderTarget1 = t, this.renderTarget2 = t.clone(), this.renderTarget2.texture.name = "EffectComposer.rt2", this.writeBuffer = this.renderTarget1, this.readBuffer = this.renderTarget2, this.renderToScreen = !0, this.passes = [], this.copyPass = new nl(Zc), this.copyPass.material.blending = 0, this.timer = new Wi();
 	}
 	swapBuffers() {
 		let e = this.readBuffer;
@@ -12035,7 +12218,7 @@ var Gc = {
 					}
 					this.swapBuffers();
 				}
-				Zc !== void 0 && (r instanceof Zc ? n = !0 : r instanceof Qc && (n = !1));
+				rl !== void 0 && (r instanceof rl ? n = !0 : r instanceof il && (n = !1));
 			}
 		}
 		this.renderer.setRenderTarget(t);
@@ -12059,7 +12242,7 @@ var Gc = {
 	dispose() {
 		this.renderTarget1.dispose(), this.renderTarget2.dispose(), this.copyPass.dispose();
 	}
-}, el = class extends Kc {
+}, ol = class extends Qc {
 	constructor(e, t, n = null, r = null, i = null) {
 		super(), this.scene = e, this.camera = t, this.overrideMaterial = n, this.clearColor = r, this.clearAlpha = i, this.clear = !0, this.clearDepth = !1, this.needsSwap = !1, this.isRenderPass = !0, this._oldClearColor = new Z();
 	}
@@ -12069,7 +12252,7 @@ var Gc = {
 		let i, a;
 		this.overrideMaterial !== null && (a = this.scene.overrideMaterial, this.scene.overrideMaterial = this.overrideMaterial), this.clearColor !== null && (e.getClearColor(this._oldClearColor), e.setClearColor(this.clearColor, e.getClearAlpha())), this.clearAlpha !== null && (i = e.getClearAlpha(), e.setClearAlpha(this.clearAlpha)), this.clearDepth == 1 && e.clearDepth(), e.setRenderTarget(this.renderToScreen ? null : n), this.clear === !0 && e.clear(e.autoClearColor, e.autoClearDepth, e.autoClearStencil), e.render(this.scene, this.camera), this.clearColor !== null && e.setClearColor(this._oldClearColor), this.clearAlpha !== null && e.setClearAlpha(i), this.overrideMaterial !== null && (this.scene.overrideMaterial = a), e.autoClear = r;
 	}
-}, tl = {
+}, sl = {
 	name: "LuminosityHighPassShader",
 	uniforms: {
 		tDiffuse: { value: null },
@@ -12080,7 +12263,7 @@ var Gc = {
 	},
 	vertexShader: "\n\n		varying vec2 vUv;\n\n		void main() {\n\n			vUv = uv;\n\n			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );\n\n		}",
 	fragmentShader: "\n\n		uniform sampler2D tDiffuse;\n		uniform vec3 defaultColor;\n		uniform float defaultOpacity;\n		uniform float luminosityThreshold;\n		uniform float smoothWidth;\n\n		varying vec2 vUv;\n\n		void main() {\n\n			vec4 texel = texture2D( tDiffuse, vUv );\n\n			float v = luminance( texel.xyz );\n\n			vec4 outputColor = vec4( defaultColor.rgb, defaultOpacity );\n\n			float alpha = smoothstep( luminosityThreshold, luminosityThreshold + smoothWidth, v );\n\n			gl_FragColor = mix( outputColor, texel, alpha );\n\n		}"
-}, nl = class e extends Kc {
+}, cl = class e extends Qc {
 	constructor(e, t = 1, n, r) {
 		super(), this.strength = t, this.radius = n, this.threshold = r, this.resolution = e === void 0 ? new q(256, 256) : new q(e.x, e.y), this.clearColor = new Z(0, 0, 0), this.needsSwap = !1, this.renderTargetsHorizontal = [], this.renderTargetsVertical = [], this.nMips = 5;
 		let i = Math.round(this.resolution.x / 2), a = Math.round(this.resolution.y / 2);
@@ -12100,7 +12283,7 @@ var Gc = {
 			});
 			n.texture.name = "UnrealBloomPass.v" + e, n.texture.generateMipmaps = !1, this.renderTargetsVertical.push(n), i = Math.round(i / 2), a = Math.round(a / 2);
 		}
-		let o = tl;
+		let o = sl;
 		this.highPassUniforms = Vr.clone(o.uniforms), this.highPassUniforms.luminosityThreshold.value = r, this.highPassUniforms.smoothWidth.value = .01, this.materialHighPassFilter = new Wr({
 			uniforms: this.highPassUniforms,
 			vertexShader: o.vertexShader,
@@ -12129,16 +12312,16 @@ var Gc = {
 			new J(1, 1, 1),
 			new J(1, 1, 1),
 			new J(1, 1, 1)
-		], this.compositeMaterial.uniforms.bloomTintColors.value = this.bloomTintColors, this.copyUniforms = Vr.clone(Gc.uniforms), this.blendMaterial = new Wr({
+		], this.compositeMaterial.uniforms.bloomTintColors.value = this.bloomTintColors, this.copyUniforms = Vr.clone(Zc.uniforms), this.blendMaterial = new Wr({
 			uniforms: this.copyUniforms,
-			vertexShader: Gc.vertexShader,
-			fragmentShader: Gc.fragmentShader,
+			vertexShader: Zc.vertexShader,
+			fragmentShader: Zc.fragmentShader,
 			premultipliedAlpha: !0,
 			blending: 2,
 			depthTest: !1,
 			depthWrite: !1,
 			transparent: !0
-		}), this._oldClearColor = new Z(), this._oldClearAlpha = 1, this._basic = new tr(), this._fsQuad = new Yc(null);
+		}), this._oldClearColor = new Z(), this._oldClearAlpha = 1, this._basic = new tr(), this._fsQuad = new tl(null);
 	}
 	dispose() {
 		for (let e = 0; e < this.renderTargetsHorizontal.length; e++) this.renderTargetsHorizontal[e].dispose();
@@ -12201,10 +12384,10 @@ var Gc = {
 		});
 	}
 };
-nl.BlurDirectionX = new q(1, 0), nl.BlurDirectionY = new q(0, 1);
+cl.BlurDirectionX = new q(1, 0), cl.BlurDirectionY = new q(0, 1);
 //#endregion
 //#region node_modules/three/examples/jsm/shaders/GTAOShader.js
-var rl = {
+var ll = {
 	name: "GTAOShader",
 	defines: {
 		PERSPECTIVE_CAMERA: 1,
@@ -12235,7 +12418,7 @@ var rl = {
 	},
 	vertexShader: "\n\n		varying vec2 vUv;\n\n		void main() {\n			vUv = uv;\n			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );\n		}",
 	fragmentShader: "\n		varying vec2 vUv;\n		uniform highp sampler2D tNormal;\n		uniform highp sampler2D tDepth;\n		uniform sampler2D tNoise;\n		uniform vec2 resolution;\n		uniform float cameraNear;\n		uniform float cameraFar;\n		uniform mat4 cameraProjectionMatrix;\n		uniform mat4 cameraProjectionMatrixInverse;\n		uniform mat4 cameraWorldMatrix;\n		uniform float radius;\n		uniform float distanceExponent;\n		uniform float thickness;\n		uniform float distanceFallOff;\n		uniform float scale;\n		#if SCENE_CLIP_BOX == 1\n			uniform vec3 sceneBoxMin;\n			uniform vec3 sceneBoxMax;\n		#endif\n\n		#include <common>\n		#include <packing>\n\n		#ifndef FRAGMENT_OUTPUT\n		#define FRAGMENT_OUTPUT vec4(vec3(ao), 1.)\n		#endif\n\n		vec3 getViewPosition( const in vec2 screenPosition, const in float depth ) {\n			#ifdef USE_REVERSED_DEPTH_BUFFER\n				vec4 clipSpacePosition = vec4( vec2( screenPosition ) * 2.0 - 1.0, depth, 1.0 );\n			#else\n				vec4 clipSpacePosition = vec4( vec3( screenPosition, depth ) * 2.0 - 1.0, 1.0 );\n			#endif\n			vec4 viewSpacePosition = cameraProjectionMatrixInverse * clipSpacePosition;\n			return viewSpacePosition.xyz / viewSpacePosition.w;\n		}\n\n		float getDepth(const vec2 uv) {\n			return textureLod(tDepth, uv.xy, 0.0).DEPTH_SWIZZLING;\n		}\n\n		float fetchDepth(const ivec2 uv) {\n			return texelFetch(tDepth, uv.xy, 0).DEPTH_SWIZZLING;\n		}\n\n		float getViewZ(const in float depth) {\n			#if PERSPECTIVE_CAMERA == 1\n				return perspectiveDepthToViewZ(depth, cameraNear, cameraFar);\n			#else\n				return orthographicDepthToViewZ(depth, cameraNear, cameraFar);\n			#endif\n		}\n\n		vec3 computeNormalFromDepth(const vec2 uv) {\n			vec2 size = vec2(textureSize(tDepth, 0));\n			ivec2 p = ivec2(uv * size);\n			float c0 = fetchDepth(p);\n			float l2 = fetchDepth(p - ivec2(2, 0));\n			float l1 = fetchDepth(p - ivec2(1, 0));\n			float r1 = fetchDepth(p + ivec2(1, 0));\n			float r2 = fetchDepth(p + ivec2(2, 0));\n			float b2 = fetchDepth(p - ivec2(0, 2));\n			float b1 = fetchDepth(p - ivec2(0, 1));\n			float t1 = fetchDepth(p + ivec2(0, 1));\n			float t2 = fetchDepth(p + ivec2(0, 2));\n			float dl = abs((2.0 * l1 - l2) - c0);\n			float dr = abs((2.0 * r1 - r2) - c0);\n			float db = abs((2.0 * b1 - b2) - c0);\n			float dt = abs((2.0 * t1 - t2) - c0);\n			vec3 ce = getViewPosition(uv, c0).xyz;\n			vec3 dpdx = (dl < dr) ? ce - getViewPosition((uv - vec2(1.0 / size.x, 0.0)), l1).xyz : -ce + getViewPosition((uv + vec2(1.0 / size.x, 0.0)), r1).xyz;\n			vec3 dpdy = (db < dt) ? ce - getViewPosition((uv - vec2(0.0, 1.0 / size.y)), b1).xyz : -ce + getViewPosition((uv + vec2(0.0, 1.0 / size.y)), t1).xyz;\n			return normalize(cross(dpdx, dpdy));\n		}\n\n		vec3 getViewNormal(const vec2 uv) {\n			#if NORMAL_VECTOR_TYPE == 2\n				return normalize(textureLod(tNormal, uv, 0.).rgb);\n			#elif NORMAL_VECTOR_TYPE == 1\n				return unpackRGBToNormal(textureLod(tNormal, uv, 0.).rgb);\n			#else\n				return computeNormalFromDepth(uv);\n			#endif\n		}\n\n		vec3 getSceneUvAndDepth(vec3 sampleViewPos) {\n			vec4 sampleClipPos = cameraProjectionMatrix * vec4(sampleViewPos, 1.);\n			vec2 sampleUv = sampleClipPos.xy / sampleClipPos.w * 0.5 + 0.5;\n			float sampleSceneDepth = getDepth(sampleUv);\n			return vec3(sampleUv, sampleSceneDepth);\n		}\n\n		void main() {\n			float depth = getDepth(vUv.xy);\n\n			#ifdef USE_REVERSED_DEPTH_BUFFER\n				if (depth <= 0.0) {\n					discard;\n					return;\n				}\n			#else\n				if (depth >= 1.0) {\n					discard;\n					return;\n				}\n			#endif\n			\n			vec3 viewPos = getViewPosition(vUv, depth);\n			vec3 viewNormal = getViewNormal(vUv);\n\n			float radiusToUse = radius;\n			float distanceFalloffToUse = thickness;\n			#if SCREEN_SPACE_RADIUS == 1\n				float radiusScale = getViewPosition(vec2(0.5 + float(SCREEN_SPACE_RADIUS_SCALE) / resolution.x, 0.0), depth).x;\n				radiusToUse *= radiusScale;\n				distanceFalloffToUse *= radiusScale;\n			#endif\n\n			#if SCENE_CLIP_BOX == 1\n				vec3 worldPos = (cameraWorldMatrix * vec4(viewPos, 1.0)).xyz;\n				float boxDistance = length(max(vec3(0.0), max(sceneBoxMin - worldPos, worldPos - sceneBoxMax)));\n				if (boxDistance > radiusToUse) {\n					discard;\n					return;\n				}\n			#endif\n\n			vec2 noiseResolution = vec2(textureSize(tNoise, 0));\n			vec2 noiseUv = vUv * resolution / noiseResolution;\n			vec4 noiseTexel = textureLod(tNoise, noiseUv, 0.0);\n			vec3 randomVec = noiseTexel.xyz * 2.0 - 1.0;\n			vec3 tangent = normalize(vec3(randomVec.xy, 0.));\n			vec3 bitangent = vec3(-tangent.y, tangent.x, 0.);\n			mat3 kernelMatrix = mat3(tangent, bitangent, vec3(0., 0., 1.));\n\n			const int DIRECTIONS = SAMPLES < 30 ? 3 : 5;\n			const int STEPS = (SAMPLES + DIRECTIONS - 1) / DIRECTIONS;\n			float ao = 0.0;\n			for (int i = 0; i < DIRECTIONS; ++i) {\n\n				float angle = float(i) / float(DIRECTIONS) * PI;\n				vec4 sampleDir = vec4(cos(angle), sin(angle), 0., 0.5 + 0.5 * noiseTexel.w);\n				sampleDir.xyz = normalize(kernelMatrix * sampleDir.xyz);\n\n				vec3 viewDir = normalize(-viewPos.xyz);\n				vec3 sliceBitangent = normalize(cross(sampleDir.xyz, viewDir));\n				vec3 sliceTangent = cross(sliceBitangent, viewDir);\n				vec3 normalInSlice = normalize(viewNormal - sliceBitangent * dot(viewNormal, sliceBitangent));\n\n				vec3 tangentToNormalInSlice = cross(normalInSlice, sliceBitangent);\n				vec2 cosHorizons = vec2(dot(viewDir, tangentToNormalInSlice), dot(viewDir, -tangentToNormalInSlice));\n\n				for (int j = 0; j < STEPS; ++j) {\n					vec3 sampleViewOffset = sampleDir.xyz * radiusToUse * sampleDir.w * pow(float(j + 1) / float(STEPS), distanceExponent);\n\n					vec3 sampleSceneUvDepth = getSceneUvAndDepth(viewPos + sampleViewOffset);\n					vec3 sampleSceneViewPos = getViewPosition(sampleSceneUvDepth.xy, sampleSceneUvDepth.z);\n					vec3 viewDelta = sampleSceneViewPos - viewPos;\n					if (abs(viewDelta.z) < thickness) {\n						float sampleCosHorizon = dot(viewDir, normalize(viewDelta));\n						cosHorizons.x += max(0., (sampleCosHorizon - cosHorizons.x) * mix(1., 2. / float(j + 2), distanceFallOff));\n					}\n\n					sampleSceneUvDepth = getSceneUvAndDepth(viewPos - sampleViewOffset);\n					sampleSceneViewPos = getViewPosition(sampleSceneUvDepth.xy, sampleSceneUvDepth.z);\n					viewDelta = sampleSceneViewPos - viewPos;\n					if (abs(viewDelta.z) < thickness) {\n						float sampleCosHorizon = dot(viewDir, normalize(viewDelta));\n						cosHorizons.y += max(0., (sampleCosHorizon - cosHorizons.y) * mix(1., 2. / float(j + 2), distanceFallOff));\n					}\n				}\n\n				vec2 sinHorizons = sqrt(1. - cosHorizons * cosHorizons);\n				float nx = dot(normalInSlice, sliceTangent);\n				float ny = dot(normalInSlice, viewDir);\n				float nxb = 1. / 2. * (acos(cosHorizons.y) - acos(cosHorizons.x) + sinHorizons.x * cosHorizons.x - sinHorizons.y * cosHorizons.y);\n				float nyb = 1. / 2. * (2. - cosHorizons.x * cosHorizons.x - cosHorizons.y * cosHorizons.y);\n				float occlusion = nx * nxb + ny * nyb;\n				ao += occlusion;\n			}\n\n			ao = clamp(ao / float(DIRECTIONS), 0., 1.);\n		#if SCENE_CLIP_BOX == 1\n			ao = mix(ao, 1., smoothstep(0., radiusToUse, boxDistance));\n		#endif\n			ao = pow(ao, scale);\n\n			gl_FragColor = FRAGMENT_OUTPUT;\n		}"
-}, il = {
+}, ul = {
 	name: "GTAODepthShader",
 	defines: { PERSPECTIVE_CAMERA: 1 },
 	uniforms: {
@@ -12245,7 +12428,7 @@ var rl = {
 	},
 	vertexShader: "\n		varying vec2 vUv;\n\n		void main() {\n			vUv = uv;\n			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );\n		}",
 	fragmentShader: "\n		uniform sampler2D tDepth;\n		uniform float cameraNear;\n		uniform float cameraFar;\n		varying vec2 vUv;\n\n		#include <packing>\n\n		float getLinearDepth( const in vec2 screenPosition ) {\n			#if PERSPECTIVE_CAMERA == 1\n				float fragCoordZ = texture2D( tDepth, screenPosition ).x;\n				float viewZ = perspectiveDepthToViewZ( fragCoordZ, cameraNear, cameraFar );\n				return viewZToOrthographicDepth( viewZ, cameraNear, cameraFar );\n			#else\n				return texture2D( tDepth, screenPosition ).x;\n			#endif\n		}\n\n		void main() {\n			float depth = getLinearDepth( vUv );\n			gl_FragColor = vec4( vec3( 1.0 - depth ), 1.0 );\n\n		}"
-}, al = {
+}, dl = {
 	name: "GTAOBlendShader",
 	uniforms: {
 		tDiffuse: { value: null },
@@ -12254,8 +12437,8 @@ var rl = {
 	vertexShader: "\n		varying vec2 vUv;\n\n		void main() {\n			vUv = uv;\n			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );\n		}",
 	fragmentShader: "\n		uniform float intensity;\n		uniform sampler2D tDiffuse;\n		varying vec2 vUv;\n\n		void main() {\n			vec4 texel = texture2D( tDiffuse, vUv );\n			gl_FragColor = vec4(mix(vec3(1.), texel.rgb, intensity), texel.a);\n		}"
 };
-function ol(e = 5) {
-	let t = Math.floor(e) % 2 == 0 ? Math.floor(e) + 1 : Math.floor(e), n = sl(t), r = n.length, i = new Uint8Array(r * 4);
+function fl(e = 5) {
+	let t = Math.floor(e) % 2 == 0 ? Math.floor(e) + 1 : Math.floor(e), n = pl(t), r = n.length, i = new Uint8Array(r * 4);
 	for (let e = 0; e < r; ++e) {
 		let t = n[e], a = 2 * Math.PI * t / r, o = new J(Math.cos(a), Math.sin(a), 0).normalize();
 		i[e * 4] = (o.x * .5 + .5) * 255, i[e * 4 + 1] = (o.y * .5 + .5) * 255, i[e * 4 + 2] = 127, i[e * 4 + 3] = 255;
@@ -12263,7 +12446,7 @@ function ol(e = 5) {
 	let a = new gr(i, t, t);
 	return a.wrapS = l, a.wrapT = l, a.needsUpdate = !0, a;
 }
-function sl(e) {
+function pl(e) {
 	let t = Math.floor(e) % 2 == 0 ? Math.floor(e) + 1 : Math.floor(e), n = t * t, r = Array(n).fill(0), i = Math.floor(t / 2), a = t - 1;
 	for (let e = 1; e <= n;) {
 		if (i === -1 && a === t ? (a = t - 2, i = 0) : (a === t && (a = 0), i < 0 && (i = t - 1)), r[i * t + a] !== 0) {
@@ -12276,11 +12459,11 @@ function sl(e) {
 }
 //#endregion
 //#region node_modules/three/examples/jsm/shaders/PoissonDenoiseShader.js
-var cl = {
+var ml = {
 	name: "PoissonDenoiseShader",
 	defines: {
 		SAMPLES: 16,
-		SAMPLE_VECTORS: ll(16, 2, 1),
+		SAMPLE_VECTORS: hl(16, 2, 1),
 		NORMAL_VECTOR_TYPE: 1,
 		DEPTH_VALUE_SOURCE: 0
 	},
@@ -12300,15 +12483,15 @@ var cl = {
 	vertexShader: "\n\n		varying vec2 vUv;\n\n		void main() {\n			vUv = uv;\n			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );\n		}",
 	fragmentShader: "\n\n		varying vec2 vUv;\n\n		uniform sampler2D tDiffuse;\n		uniform sampler2D tNormal;\n		uniform sampler2D tDepth;\n		uniform sampler2D tNoise;\n		uniform vec2 resolution;\n		uniform mat4 cameraProjectionMatrixInverse;\n		uniform float lumaPhi;\n		uniform float depthPhi;\n		uniform float normalPhi;\n		uniform float radius;\n		uniform int index;\n\n		#include <common>\n		#include <packing>\n\n		#ifndef SAMPLE_LUMINANCE\n		#define SAMPLE_LUMINANCE dot(vec3(0.2125, 0.7154, 0.0721), a)\n		#endif\n\n		#ifndef FRAGMENT_OUTPUT\n		#define FRAGMENT_OUTPUT vec4(denoised, 1.)\n		#endif\n\n		float getLuminance(const in vec3 a) {\n			return SAMPLE_LUMINANCE;\n		}\n\n		const vec3 poissonDisk[SAMPLES] = SAMPLE_VECTORS;\n\n		vec3 getViewPosition( const in vec2 screenPosition, const in float depth ) {\n			#ifdef USE_REVERSED_DEPTH_BUFFER\n				vec4 clipSpacePosition = vec4( vec2( screenPosition ) * 2.0 - 1.0, depth, 1.0 );\n			#else\n				vec4 clipSpacePosition = vec4( vec3( screenPosition, depth ) * 2.0 - 1.0, 1.0 );\n			#endif\n			vec4 viewSpacePosition = cameraProjectionMatrixInverse * clipSpacePosition;\n			return viewSpacePosition.xyz / viewSpacePosition.w;\n		}\n\n		float getDepth(const vec2 uv) {\n		#if DEPTH_VALUE_SOURCE == 1\n			return textureLod(tDepth, uv.xy, 0.0).a;\n		#else\n			return textureLod(tDepth, uv.xy, 0.0).r;\n		#endif\n		}\n\n		float fetchDepth(const ivec2 uv) {\n			#if DEPTH_VALUE_SOURCE == 1\n				return texelFetch(tDepth, uv.xy, 0).a;\n			#else\n				return texelFetch(tDepth, uv.xy, 0).r;\n			#endif\n		}\n\n		vec3 computeNormalFromDepth(const vec2 uv) {\n			vec2 size = vec2(textureSize(tDepth, 0));\n			ivec2 p = ivec2(uv * size);\n			float c0 = fetchDepth(p);\n			float l2 = fetchDepth(p - ivec2(2, 0));\n			float l1 = fetchDepth(p - ivec2(1, 0));\n			float r1 = fetchDepth(p + ivec2(1, 0));\n			float r2 = fetchDepth(p + ivec2(2, 0));\n			float b2 = fetchDepth(p - ivec2(0, 2));\n			float b1 = fetchDepth(p - ivec2(0, 1));\n			float t1 = fetchDepth(p + ivec2(0, 1));\n			float t2 = fetchDepth(p + ivec2(0, 2));\n			float dl = abs((2.0 * l1 - l2) - c0);\n			float dr = abs((2.0 * r1 - r2) - c0);\n			float db = abs((2.0 * b1 - b2) - c0);\n			float dt = abs((2.0 * t1 - t2) - c0);\n			vec3 ce = getViewPosition(uv, c0).xyz;\n			vec3 dpdx = (dl < dr) ?  ce - getViewPosition((uv - vec2(1.0 / size.x, 0.0)), l1).xyz\n									: -ce + getViewPosition((uv + vec2(1.0 / size.x, 0.0)), r1).xyz;\n			vec3 dpdy = (db < dt) ?  ce - getViewPosition((uv - vec2(0.0, 1.0 / size.y)), b1).xyz\n									: -ce + getViewPosition((uv + vec2(0.0, 1.0 / size.y)), t1).xyz;\n			return normalize(cross(dpdx, dpdy));\n		}\n\n		vec3 getViewNormal(const vec2 uv) {\n		#if NORMAL_VECTOR_TYPE == 2\n			return normalize(textureLod(tNormal, uv, 0.).rgb);\n		#elif NORMAL_VECTOR_TYPE == 1\n			return unpackRGBToNormal(textureLod(tNormal, uv, 0.).rgb);\n		#else\n			return computeNormalFromDepth(uv);\n		#endif\n		}\n\n		void denoiseSample(in vec3 center, in vec3 viewNormal, in vec3 viewPos, in vec2 sampleUv, inout vec3 denoised, inout float totalWeight) {\n			vec4 sampleTexel = textureLod(tDiffuse, sampleUv, 0.0);\n			float sampleDepth = getDepth(sampleUv);\n			vec3 sampleNormal = getViewNormal(sampleUv);\n			vec3 neighborColor = sampleTexel.rgb;\n			vec3 viewPosSample = getViewPosition(sampleUv, sampleDepth);\n\n			float normalDiff = dot(viewNormal, sampleNormal);\n			float normalSimilarity = pow(max(normalDiff, 0.), normalPhi);\n			float lumaDiff = abs(getLuminance(neighborColor) - getLuminance(center));\n			float lumaSimilarity = max(1.0 - lumaDiff / lumaPhi, 0.0);\n			float depthDiff = abs(dot(viewPos - viewPosSample, viewNormal));\n			float depthSimilarity = max(1. - depthDiff / depthPhi, 0.);\n			float w = lumaSimilarity * depthSimilarity * normalSimilarity;\n\n			denoised += w * neighborColor;\n			totalWeight += w;\n		}\n\n		void main() {\n			float depth = getDepth(vUv.xy);\n			vec3 viewNormal = getViewNormal(vUv);\n			if (depth == 1. || dot(viewNormal, viewNormal) == 0.) {\n				discard;\n				return;\n			}\n			vec4 texel = textureLod(tDiffuse, vUv, 0.0);\n			vec3 center = texel.rgb;\n			vec3 viewPos = getViewPosition(vUv, depth);\n\n			vec2 noiseResolution = vec2(textureSize(tNoise, 0));\n			vec2 noiseUv = vUv * resolution / noiseResolution;\n			vec4 noiseTexel = textureLod(tNoise, noiseUv, 0.0);\n      		vec2 noiseVec = vec2(sin(noiseTexel[index % 4] * 2. * PI), cos(noiseTexel[index % 4] * 2. * PI));\n    		mat2 rotationMatrix = mat2(noiseVec.x, -noiseVec.y, noiseVec.x, noiseVec.y);\n\n			float totalWeight = 1.0;\n			vec3 denoised = texel.rgb;\n			for (int i = 0; i < SAMPLES; i++) {\n				vec3 sampleDir = poissonDisk[i];\n				vec2 offset = rotationMatrix * (sampleDir.xy * (1. + sampleDir.z * (radius - 1.)) / resolution);\n				vec2 sampleUv = vUv + offset;\n				denoiseSample(center, viewNormal, viewPos, sampleUv, denoised, totalWeight);\n			}\n\n			if (totalWeight > 0.) {\n				denoised /= totalWeight;\n			}\n			gl_FragColor = FRAGMENT_OUTPUT;\n		}"
 };
-function ll(e, t, n) {
-	let r = ul(e, t, n), i = "vec3[SAMPLES](";
+function hl(e, t, n) {
+	let r = gl(e, t, n), i = "vec3[SAMPLES](";
 	for (let t = 0; t < e; t++) {
 		let n = r[t];
 		i += `vec3(${n.x}, ${n.y}, ${n.z})${t < e - 1 ? "," : ")"}`;
 	}
 	return i;
 }
-function ul(e, t, n) {
+function gl(e, t, n) {
 	let r = [];
 	for (let i = 0; i < e; i++) {
 		let a = 2 * Math.PI * t * i / e, o = (i / (e - 1)) ** n;
@@ -12318,7 +12501,7 @@ function ul(e, t, n) {
 }
 //#endregion
 //#region node_modules/three/examples/jsm/math/SimplexNoise.js
-var dl = class {
+var _l = class {
 	constructor(e = Math) {
 		this.grad3 = [
 			[
@@ -13008,36 +13191,36 @@ var dl = class {
 	_dot4(e, t, n, r, i) {
 		return e[0] * t + e[1] * n + e[2] * r + e[3] * i;
 	}
-}, fl = class e extends Kc {
+}, vl = class e extends Qc {
 	constructor(e, t, n = 512, r = 512, i, a, o) {
-		super(), this.width = n, this.height = r, this.clear = !0, this.camera = t, this.scene = e, this.output = 0, this._renderGBuffer = !0, this._visibilityCache = [], this.blendIntensity = 1, this.pdRings = 2, this.pdRadiusExponent = 2, this.pdSamples = 16, this.gtaoNoiseTexture = ol(), this.pdNoiseTexture = this._generateNoise(), this.gtaoRenderTarget = new it(this.width, this.height, {
+		super(), this.width = n, this.height = r, this.clear = !0, this.camera = t, this.scene = e, this.output = 0, this._renderGBuffer = !0, this._visibilityCache = [], this.blendIntensity = 1, this.pdRings = 2, this.pdRadiusExponent = 2, this.pdSamples = 16, this.gtaoNoiseTexture = fl(), this.pdNoiseTexture = this._generateNoise(), this.gtaoRenderTarget = new it(this.width, this.height, {
 			type: y,
 			depthBuffer: !1
 		}), this.pdRenderTarget = this.gtaoRenderTarget.clone(), this.gtaoMaterial = new Wr({
-			defines: Object.assign({}, rl.defines),
-			uniforms: Vr.clone(rl.uniforms),
-			vertexShader: rl.vertexShader,
-			fragmentShader: rl.fragmentShader,
+			defines: Object.assign({}, ll.defines),
+			uniforms: Vr.clone(ll.uniforms),
+			vertexShader: ll.vertexShader,
+			fragmentShader: ll.fragmentShader,
 			blending: 0,
 			depthTest: !1,
 			depthWrite: !1
 		}), this.gtaoMaterial.defines.PERSPECTIVE_CAMERA = +!!this.camera.isPerspectiveCamera, this.gtaoMaterial.uniforms.tNoise.value = this.gtaoNoiseTexture, this.gtaoMaterial.uniforms.resolution.value.set(this.width, this.height), this.gtaoMaterial.uniforms.cameraNear.value = this.camera.near, this.gtaoMaterial.uniforms.cameraFar.value = this.camera.far, this.normalMaterial = new Jr(), this.normalMaterial.blending = 0, this.pdMaterial = new Wr({
-			defines: Object.assign({}, cl.defines),
-			uniforms: Vr.clone(cl.uniforms),
-			vertexShader: cl.vertexShader,
-			fragmentShader: cl.fragmentShader,
+			defines: Object.assign({}, ml.defines),
+			uniforms: Vr.clone(ml.uniforms),
+			vertexShader: ml.vertexShader,
+			fragmentShader: ml.fragmentShader,
 			depthTest: !1,
 			depthWrite: !1
 		}), this.pdMaterial.uniforms.tDiffuse.value = this.gtaoRenderTarget.texture, this.pdMaterial.uniforms.tNoise.value = this.pdNoiseTexture, this.pdMaterial.uniforms.resolution.value.set(this.width, this.height), this.pdMaterial.uniforms.lumaPhi.value = 10, this.pdMaterial.uniforms.depthPhi.value = 2, this.pdMaterial.uniforms.normalPhi.value = 3, this.pdMaterial.uniforms.radius.value = 8, this.depthRenderMaterial = new Wr({
-			defines: Object.assign({}, il.defines),
-			uniforms: Vr.clone(il.uniforms),
-			vertexShader: il.vertexShader,
-			fragmentShader: il.fragmentShader,
+			defines: Object.assign({}, ul.defines),
+			uniforms: Vr.clone(ul.uniforms),
+			vertexShader: ul.vertexShader,
+			fragmentShader: ul.fragmentShader,
 			blending: 0
 		}), this.depthRenderMaterial.uniforms.cameraNear.value = this.camera.near, this.depthRenderMaterial.uniforms.cameraFar.value = this.camera.far, this.copyMaterial = new Wr({
-			uniforms: Vr.clone(Gc.uniforms),
-			vertexShader: Gc.vertexShader,
-			fragmentShader: Gc.fragmentShader,
+			uniforms: Vr.clone(Zc.uniforms),
+			vertexShader: Zc.vertexShader,
+			fragmentShader: Zc.fragmentShader,
 			transparent: !0,
 			depthTest: !1,
 			depthWrite: !1,
@@ -13048,9 +13231,9 @@ var dl = class {
 			blendDstAlpha: 200,
 			blendEquationAlpha: 100
 		}), this.blendMaterial = new Wr({
-			uniforms: Vr.clone(al.uniforms),
-			vertexShader: al.vertexShader,
-			fragmentShader: al.fragmentShader,
+			uniforms: Vr.clone(dl.uniforms),
+			vertexShader: dl.vertexShader,
+			fragmentShader: dl.fragmentShader,
 			transparent: !0,
 			depthTest: !1,
 			depthWrite: !1,
@@ -13061,7 +13244,7 @@ var dl = class {
 			blendSrcAlpha: 206,
 			blendDstAlpha: 200,
 			blendEquationAlpha: 100
-		}), this._fsQuad = new Yc(null), this._originalClearColor = new Z(), this.setGBuffer(i ? i.depthTexture : void 0, i ? i.normalTexture : void 0), a !== void 0 && this.updateGtaoMaterial(a), o !== void 0 && this.updatePdMaterial(o);
+		}), this._fsQuad = new tl(null), this._originalClearColor = new Z(), this.setGBuffer(i ? i.depthTexture : void 0, i ? i.normalTexture : void 0), a !== void 0 && this.updateGtaoMaterial(a), o !== void 0 && this.updatePdMaterial(o);
 	}
 	setSize(e, t) {
 		this.width = e, this.height = t, this.gtaoRenderTarget.setSize(e, t), this.normalRenderTarget.setSize(e, t), this.pdRenderTarget.setSize(e, t), this.gtaoMaterial.uniforms.resolution.value.set(e, t), this.gtaoMaterial.uniforms.cameraProjectionMatrix.value.copy(this.camera.projectionMatrix), this.gtaoMaterial.uniforms.cameraProjectionMatrixInverse.value.copy(this.camera.projectionMatrixInverse), this.pdMaterial.uniforms.resolution.value.set(e, t), this.pdMaterial.uniforms.cameraProjectionMatrixInverse.value.copy(this.camera.projectionMatrixInverse);
@@ -13090,7 +13273,7 @@ var dl = class {
 	}
 	updatePdMaterial(e) {
 		let t = !1;
-		e.lumaPhi !== void 0 && (this.pdMaterial.uniforms.lumaPhi.value = e.lumaPhi), e.depthPhi !== void 0 && (this.pdMaterial.uniforms.depthPhi.value = e.depthPhi), e.normalPhi !== void 0 && (this.pdMaterial.uniforms.normalPhi.value = e.normalPhi), e.radius !== void 0 && e.radius !== this.radius && (this.pdMaterial.uniforms.radius.value = e.radius), e.radiusExponent !== void 0 && e.radiusExponent !== this.pdRadiusExponent && (this.pdRadiusExponent = e.radiusExponent, t = !0), e.rings !== void 0 && e.rings !== this.pdRings && (this.pdRings = e.rings, t = !0), e.samples !== void 0 && e.samples !== this.pdSamples && (this.pdSamples = e.samples, t = !0), t && (this.pdMaterial.defines.SAMPLES = this.pdSamples, this.pdMaterial.defines.SAMPLE_VECTORS = ll(this.pdSamples, this.pdRings, this.pdRadiusExponent), this.pdMaterial.needsUpdate = !0);
+		e.lumaPhi !== void 0 && (this.pdMaterial.uniforms.lumaPhi.value = e.lumaPhi), e.depthPhi !== void 0 && (this.pdMaterial.uniforms.depthPhi.value = e.depthPhi), e.normalPhi !== void 0 && (this.pdMaterial.uniforms.normalPhi.value = e.normalPhi), e.radius !== void 0 && e.radius !== this.radius && (this.pdMaterial.uniforms.radius.value = e.radius), e.radiusExponent !== void 0 && e.radiusExponent !== this.pdRadiusExponent && (this.pdRadiusExponent = e.radiusExponent, t = !0), e.rings !== void 0 && e.rings !== this.pdRings && (this.pdRings = e.rings, t = !0), e.samples !== void 0 && e.samples !== this.pdSamples && (this.pdSamples = e.samples, t = !0), t && (this.pdMaterial.defines.SAMPLES = this.pdSamples, this.pdMaterial.defines.SAMPLE_VECTORS = hl(this.pdSamples, this.pdRings, this.pdRadiusExponent), this.pdMaterial.needsUpdate = !0);
 	}
 	render(t, n, r) {
 		switch (this._renderGBuffer && (this._overrideVisibility(), this._renderOverride(t, this.normalMaterial, this.normalRenderTarget, 7829503, 1), this._restoreVisibility()), this.gtaoMaterial.uniforms.cameraNear.value = this.camera.near, this.gtaoMaterial.uniforms.cameraFar.value = this.camera.far, this.gtaoMaterial.uniforms.cameraProjectionMatrix.value.copy(this.camera.projectionMatrix), this.gtaoMaterial.uniforms.cameraProjectionMatrixInverse.value.copy(this.camera.projectionMatrixInverse), this.gtaoMaterial.uniforms.cameraWorldMatrix.value.copy(this.camera.matrixWorld), this._renderPass(t, this.gtaoMaterial, this.gtaoRenderTarget, 16777215, 1), this.pdMaterial.uniforms.cameraProjectionMatrixInverse.value.copy(this.camera.projectionMatrixInverse), this._renderPass(t, this.pdMaterial, this.pdRenderTarget, 16777215, 1), this.output) {
@@ -13138,7 +13321,7 @@ var dl = class {
 		e.length = 0;
 	}
 	_generateNoise(e = 64) {
-		let t = new dl(), n = e * e * 4, r = new Uint8Array(n);
+		let t = new _l(), n = e * e * 4, r = new Uint8Array(n);
 		for (let n = 0; n < e; n++) for (let i = 0; i < e; i++) {
 			let a = n, o = i;
 			r[(n * e + i) * 4] = (t.noise(a, o) * .5 + .5) * 255, r[(n * e + i) * 4 + 1] = (t.noise(a + e, o) * .5 + .5) * 255, r[(n * e + i) * 4 + 2] = (t.noise(a, o + e) * .5 + .5) * 255, r[(n * e + i) * 4 + 3] = (t.noise(a + e, o + e) * .5 + .5) * 255;
@@ -13147,7 +13330,7 @@ var dl = class {
 		return i.wrapS = l, i.wrapT = l, i.needsUpdate = !0, i;
 	}
 };
-fl.OUTPUT = {
+vl.OUTPUT = {
 	Off: -1,
 	Default: 0,
 	Diffuse: 1,
@@ -13158,7 +13341,7 @@ fl.OUTPUT = {
 };
 //#endregion
 //#region node_modules/three/examples/jsm/shaders/BokehShader.js
-var pl = {
+var yl = {
 	name: "BokehShader",
 	defines: {
 		DEPTH_PACKING: 1,
@@ -13176,7 +13359,7 @@ var pl = {
 	},
 	vertexShader: "\n\n		varying vec2 vUv;\n\n		void main() {\n\n			vUv = uv;\n			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );\n\n		}",
 	fragmentShader: "\n\n		#include <common>\n\n		varying vec2 vUv;\n\n		uniform sampler2D tColor;\n		uniform sampler2D tDepth;\n\n		uniform float maxblur; // max blur amount\n		uniform float aperture; // aperture - bigger values for shallower depth of field\n\n		uniform float nearClip;\n		uniform float farClip;\n\n		uniform float focus;\n		uniform float aspect;\n\n		#include <packing>\n\n		float getDepth( const in vec2 screenPosition ) {\n			#if DEPTH_PACKING == 1\n			return unpackRGBAToDepth( texture2D( tDepth, screenPosition ) );\n			#else\n			return texture2D( tDepth, screenPosition ).x;\n			#endif\n		}\n\n		float getViewZ( const in float depth ) {\n			#if PERSPECTIVE_CAMERA == 1\n			return perspectiveDepthToViewZ( depth, nearClip, farClip );\n			#else\n			return orthographicDepthToViewZ( depth, nearClip, farClip );\n			#endif\n		}\n\n\n		void main() {\n\n			vec2 aspectcorrect = vec2( 1.0, aspect );\n\n			float viewZ = getViewZ( getDepth( vUv ) );\n\n			float factor = ( focus + viewZ ); // viewZ is <= 0, so this is a difference equation\n\n			vec2 dofblur = vec2 ( clamp( factor * aperture, -maxblur, maxblur ) );\n\n			vec2 dofblur9 = dofblur * 0.9;\n			vec2 dofblur7 = dofblur * 0.7;\n			vec2 dofblur4 = dofblur * 0.4;\n\n			vec4 col = vec4( 0.0 );\n\n			col += texture2D( tColor, vUv.xy );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.0,   0.4  ) * aspectcorrect ) * dofblur );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.15,  0.37 ) * aspectcorrect ) * dofblur );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.29,  0.29 ) * aspectcorrect ) * dofblur );\n			col += texture2D( tColor, vUv.xy + ( vec2( -0.37,  0.15 ) * aspectcorrect ) * dofblur );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.40,  0.0  ) * aspectcorrect ) * dofblur );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.37, -0.15 ) * aspectcorrect ) * dofblur );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.29, -0.29 ) * aspectcorrect ) * dofblur );\n			col += texture2D( tColor, vUv.xy + ( vec2( -0.15, -0.37 ) * aspectcorrect ) * dofblur );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.0,  -0.4  ) * aspectcorrect ) * dofblur );\n			col += texture2D( tColor, vUv.xy + ( vec2( -0.15,  0.37 ) * aspectcorrect ) * dofblur );\n			col += texture2D( tColor, vUv.xy + ( vec2( -0.29,  0.29 ) * aspectcorrect ) * dofblur );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.37,  0.15 ) * aspectcorrect ) * dofblur );\n			col += texture2D( tColor, vUv.xy + ( vec2( -0.4,   0.0  ) * aspectcorrect ) * dofblur );\n			col += texture2D( tColor, vUv.xy + ( vec2( -0.37, -0.15 ) * aspectcorrect ) * dofblur );\n			col += texture2D( tColor, vUv.xy + ( vec2( -0.29, -0.29 ) * aspectcorrect ) * dofblur );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.15, -0.37 ) * aspectcorrect ) * dofblur );\n\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.15,  0.37 ) * aspectcorrect ) * dofblur9 );\n			col += texture2D( tColor, vUv.xy + ( vec2( -0.37,  0.15 ) * aspectcorrect ) * dofblur9 );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.37, -0.15 ) * aspectcorrect ) * dofblur9 );\n			col += texture2D( tColor, vUv.xy + ( vec2( -0.15, -0.37 ) * aspectcorrect ) * dofblur9 );\n			col += texture2D( tColor, vUv.xy + ( vec2( -0.15,  0.37 ) * aspectcorrect ) * dofblur9 );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.37,  0.15 ) * aspectcorrect ) * dofblur9 );\n			col += texture2D( tColor, vUv.xy + ( vec2( -0.37, -0.15 ) * aspectcorrect ) * dofblur9 );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.15, -0.37 ) * aspectcorrect ) * dofblur9 );\n\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.29,  0.29 ) * aspectcorrect ) * dofblur7 );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.40,  0.0  ) * aspectcorrect ) * dofblur7 );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.29, -0.29 ) * aspectcorrect ) * dofblur7 );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.0,  -0.4  ) * aspectcorrect ) * dofblur7 );\n			col += texture2D( tColor, vUv.xy + ( vec2( -0.29,  0.29 ) * aspectcorrect ) * dofblur7 );\n			col += texture2D( tColor, vUv.xy + ( vec2( -0.4,   0.0  ) * aspectcorrect ) * dofblur7 );\n			col += texture2D( tColor, vUv.xy + ( vec2( -0.29, -0.29 ) * aspectcorrect ) * dofblur7 );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.0,   0.4  ) * aspectcorrect ) * dofblur7 );\n\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.29,  0.29 ) * aspectcorrect ) * dofblur4 );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.4,   0.0  ) * aspectcorrect ) * dofblur4 );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.29, -0.29 ) * aspectcorrect ) * dofblur4 );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.0,  -0.4  ) * aspectcorrect ) * dofblur4 );\n			col += texture2D( tColor, vUv.xy + ( vec2( -0.29,  0.29 ) * aspectcorrect ) * dofblur4 );\n			col += texture2D( tColor, vUv.xy + ( vec2( -0.4,   0.0  ) * aspectcorrect ) * dofblur4 );\n			col += texture2D( tColor, vUv.xy + ( vec2( -0.29, -0.29 ) * aspectcorrect ) * dofblur4 );\n			col += texture2D( tColor, vUv.xy + ( vec2(  0.0,   0.4  ) * aspectcorrect ) * dofblur4 );\n\n			gl_FragColor = col / 41.0;\n			gl_FragColor.a = 1.0;\n\n		}"
-}, ml = class extends Kc {
+}, bl = class extends Qc {
 	constructor(e, t, n) {
 		super(), this.scene = e, this.camera = t;
 		let r = n.focus === void 0 ? 1 : n.focus, i = n.aperture === void 0 ? .025 : n.aperture, a = n.maxblur === void 0 ? 1 : n.maxblur;
@@ -13185,13 +13368,13 @@ var pl = {
 			magFilter: f,
 			type: y
 		}), this._renderTargetDepth.texture.name = "BokehPass.depth", this._materialDepth = new Yr(), this._materialDepth.depthPacking = I, this._materialDepth.blending = 0;
-		let o = Vr.clone(pl.uniforms);
+		let o = Vr.clone(yl.uniforms);
 		o.tDepth.value = this._renderTargetDepth.texture, o.focus.value = r, o.aspect.value = t.aspect, o.aperture.value = i, o.maxblur.value = a, o.nearClip.value = t.near, o.farClip.value = t.far, this.materialBokeh = new Wr({
-			defines: Object.assign({}, pl.defines),
+			defines: Object.assign({}, yl.defines),
 			uniforms: o,
-			vertexShader: pl.vertexShader,
-			fragmentShader: pl.fragmentShader
-		}), this.uniforms = o, this._fsQuad = new Yc(this.materialBokeh), this._oldClearColor = new Z();
+			vertexShader: yl.vertexShader,
+			fragmentShader: yl.fragmentShader
+		}), this.uniforms = o, this._fsQuad = new tl(this.materialBokeh), this._oldClearColor = new Z();
 	}
 	render(e, t, n) {
 		this.scene.overrideMaterial = this._materialDepth, e.getClearColor(this._oldClearColor);
@@ -13204,7 +13387,7 @@ var pl = {
 	dispose() {
 		this._renderTargetDepth.dispose(), this._materialDepth.dispose(), this.materialBokeh.dispose(), this._fsQuad.dispose();
 	}
-}, hl = {
+}, xl = {
 	name: "OutputShader",
 	uniforms: {
 		tDiffuse: { value: null },
@@ -13212,14 +13395,14 @@ var pl = {
 	},
 	vertexShader: "\n		precision highp float;\n\n		uniform mat4 modelViewMatrix;\n		uniform mat4 projectionMatrix;\n\n		attribute vec3 position;\n		attribute vec2 uv;\n\n		varying vec2 vUv;\n\n		void main() {\n\n			vUv = uv;\n			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );\n\n		}",
 	fragmentShader: "\n\n		precision highp float;\n\n		uniform sampler2D tDiffuse;\n\n		#include <tonemapping_pars_fragment>\n		#include <colorspace_pars_fragment>\n\n		varying vec2 vUv;\n\n		void main() {\n\n			gl_FragColor = texture2D( tDiffuse, vUv );\n\n			// tone mapping\n\n			#ifdef LINEAR_TONE_MAPPING\n\n				gl_FragColor.rgb = LinearToneMapping( gl_FragColor.rgb );\n\n			#elif defined( REINHARD_TONE_MAPPING )\n\n				gl_FragColor.rgb = ReinhardToneMapping( gl_FragColor.rgb );\n\n			#elif defined( CINEON_TONE_MAPPING )\n\n				gl_FragColor.rgb = CineonToneMapping( gl_FragColor.rgb );\n\n			#elif defined( ACES_FILMIC_TONE_MAPPING )\n\n				gl_FragColor.rgb = ACESFilmicToneMapping( gl_FragColor.rgb );\n\n			#elif defined( AGX_TONE_MAPPING )\n\n				gl_FragColor.rgb = AgXToneMapping( gl_FragColor.rgb );\n\n			#elif defined( NEUTRAL_TONE_MAPPING )\n\n				gl_FragColor.rgb = NeutralToneMapping( gl_FragColor.rgb );\n\n			#elif defined( CUSTOM_TONE_MAPPING )\n\n				gl_FragColor.rgb = CustomToneMapping( gl_FragColor.rgb );\n\n			#endif\n\n			// color space\n\n			#ifdef SRGB_TRANSFER\n\n				gl_FragColor = sRGBTransferOETF( gl_FragColor );\n\n			#endif\n\n		}"
-}, gl = class extends Kc {
+}, Sl = class extends Qc {
 	constructor() {
-		super(), this.isOutputPass = !0, this.uniforms = Vr.clone(hl.uniforms), this.material = new Gr({
-			name: hl.name,
+		super(), this.isOutputPass = !0, this.uniforms = Vr.clone(xl.uniforms), this.material = new Gr({
+			name: xl.name,
 			uniforms: this.uniforms,
-			vertexShader: hl.vertexShader,
-			fragmentShader: hl.fragmentShader
-		}), this._fsQuad = new Yc(this.material), this._outputColorSpace = null, this._toneMapping = null;
+			vertexShader: xl.vertexShader,
+			fragmentShader: xl.fragmentShader
+		}), this._fsQuad = new tl(this.material), this._outputColorSpace = null, this._toneMapping = null;
 	}
 	render(e, t, n) {
 		this.uniforms.tDiffuse.value = n.texture, this.uniforms.toneMappingExposure.value = e.toneMappingExposure, (this._outputColorSpace !== e.outputColorSpace || this._toneMapping !== e.toneMapping) && (this._outputColorSpace = e.outputColorSpace, this._toneMapping = e.toneMapping, this.material.defines = {}, X.getTransfer(this._outputColorSpace) === "srgb" && (this.material.defines.SRGB_TRANSFER = ""), this._toneMapping === 1 ? this.material.defines.LINEAR_TONE_MAPPING = "" : this._toneMapping === 2 ? this.material.defines.REINHARD_TONE_MAPPING = "" : this._toneMapping === 3 ? this.material.defines.CINEON_TONE_MAPPING = "" : this._toneMapping === 4 ? this.material.defines.ACES_FILMIC_TONE_MAPPING = "" : this._toneMapping === 6 ? this.material.defines.AGX_TONE_MAPPING = "" : this._toneMapping === 7 ? this.material.defines.NEUTRAL_TONE_MAPPING = "" : this._toneMapping === 5 && (this.material.defines.CUSTOM_TONE_MAPPING = ""), this.material.needsUpdate = !0), this.renderToScreen === !0 ? (e.setRenderTarget(null), this._fsQuad.render(e)) : (e.setRenderTarget(t), this.clear && e.clear(e.autoClearColor, e.autoClearDepth, e.autoClearStencil), this._fsQuad.render(e));
@@ -13227,7 +13410,7 @@ var pl = {
 	dispose() {
 		this.material.dispose(), this._fsQuad.dispose();
 	}
-}, _l = {
+}, Cl = {
 	name: "SMAAEdgesShader",
 	defines: { SMAA_THRESHOLD: "0.1" },
 	uniforms: {
@@ -13236,7 +13419,7 @@ var pl = {
 	},
 	vertexShader: "\n\n		uniform vec2 resolution;\n\n		varying vec2 vUv;\n		varying vec4 vOffset[ 3 ];\n\n		void SMAAEdgeDetectionVS( vec2 texcoord ) {\n			vOffset[ 0 ] = texcoord.xyxy + resolution.xyxy * vec4( -1.0, 0.0, 0.0,  1.0 ); // WebGL port note: Changed sign in W component\n			vOffset[ 1 ] = texcoord.xyxy + resolution.xyxy * vec4(  1.0, 0.0, 0.0, -1.0 ); // WebGL port note: Changed sign in W component\n			vOffset[ 2 ] = texcoord.xyxy + resolution.xyxy * vec4( -2.0, 0.0, 0.0,  2.0 ); // WebGL port note: Changed sign in W component\n		}\n\n		void main() {\n\n			vUv = uv;\n\n			SMAAEdgeDetectionVS( vUv );\n\n			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );\n\n		}",
 	fragmentShader: "\n\n		uniform sampler2D tDiffuse;\n\n		varying vec2 vUv;\n		varying vec4 vOffset[ 3 ];\n\n		vec4 SMAAColorEdgeDetectionPS( vec2 texcoord, vec4 offset[3], sampler2D colorTex ) {\n			vec2 threshold = vec2( SMAA_THRESHOLD, SMAA_THRESHOLD );\n\n			// Calculate color deltas:\n			vec4 delta;\n			vec3 C = texture2D( colorTex, texcoord ).rgb;\n\n			vec3 Cleft = texture2D( colorTex, offset[0].xy ).rgb;\n			vec3 t = abs( C - Cleft );\n			delta.x = max( max( t.r, t.g ), t.b );\n\n			vec3 Ctop = texture2D( colorTex, offset[0].zw ).rgb;\n			t = abs( C - Ctop );\n			delta.y = max( max( t.r, t.g ), t.b );\n\n			// We do the usual threshold:\n			vec2 edges = step( threshold, delta.xy );\n\n			// Then discard if there is no edge:\n			if ( dot( edges, vec2( 1.0, 1.0 ) ) == 0.0 )\n				discard;\n\n			// Calculate right and bottom deltas:\n			vec3 Cright = texture2D( colorTex, offset[1].xy ).rgb;\n			t = abs( C - Cright );\n			delta.z = max( max( t.r, t.g ), t.b );\n\n			vec3 Cbottom  = texture2D( colorTex, offset[1].zw ).rgb;\n			t = abs( C - Cbottom );\n			delta.w = max( max( t.r, t.g ), t.b );\n\n			// Calculate the maximum delta in the direct neighborhood:\n			float maxDelta = max( max( max( delta.x, delta.y ), delta.z ), delta.w );\n\n			// Calculate left-left and top-top deltas:\n			vec3 Cleftleft  = texture2D( colorTex, offset[2].xy ).rgb;\n			t = abs( C - Cleftleft );\n			delta.z = max( max( t.r, t.g ), t.b );\n\n			vec3 Ctoptop = texture2D( colorTex, offset[2].zw ).rgb;\n			t = abs( C - Ctoptop );\n			delta.w = max( max( t.r, t.g ), t.b );\n\n			// Calculate the final maximum delta:\n			maxDelta = max( max( maxDelta, delta.z ), delta.w );\n\n			// Local contrast adaptation in action:\n			edges.xy *= step( 0.5 * maxDelta, delta.xy );\n\n			return vec4( edges, 0.0, 0.0 );\n		}\n\n		void main() {\n\n			gl_FragColor = SMAAColorEdgeDetectionPS( vUv, vOffset, tDiffuse );\n\n		}"
-}, vl = {
+}, wl = {
 	name: "SMAAWeightsShader",
 	defines: {
 		SMAA_MAX_SEARCH_STEPS: "8",
@@ -13252,7 +13435,7 @@ var pl = {
 	},
 	vertexShader: "\n\n		uniform vec2 resolution;\n\n		varying vec2 vUv;\n		varying vec4 vOffset[ 3 ];\n		varying vec2 vPixcoord;\n\n		void SMAABlendingWeightCalculationVS( vec2 texcoord ) {\n			vPixcoord = texcoord / resolution;\n\n			// We will use these offsets for the searches later on (see @PSEUDO_GATHER4):\n			vOffset[ 0 ] = texcoord.xyxy + resolution.xyxy * vec4( -0.25, 0.125, 1.25, 0.125 ); // WebGL port note: Changed sign in Y and W components\n			vOffset[ 1 ] = texcoord.xyxy + resolution.xyxy * vec4( -0.125, 0.25, -0.125, -1.25 ); // WebGL port note: Changed sign in Y and W components\n\n			// And these for the searches, they indicate the ends of the loops:\n			vOffset[ 2 ] = vec4( vOffset[ 0 ].xz, vOffset[ 1 ].yw ) + vec4( -2.0, 2.0, -2.0, 2.0 ) * resolution.xxyy * float( SMAA_MAX_SEARCH_STEPS );\n\n		}\n\n		void main() {\n\n			vUv = uv;\n\n			SMAABlendingWeightCalculationVS( vUv );\n\n			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );\n\n		}",
 	fragmentShader: "\n\n		#define SMAASampleLevelZeroOffset( tex, coord, offset ) texture2D( tex, coord + float( offset ) * resolution, 0.0 )\n\n		uniform sampler2D tDiffuse;\n		uniform sampler2D tArea;\n		uniform sampler2D tSearch;\n		uniform vec2 resolution;\n\n		varying vec2 vUv;\n		varying vec4 vOffset[3];\n		varying vec2 vPixcoord;\n\n		#if __VERSION__ == 100\n		vec2 round( vec2 x ) {\n			return sign( x ) * floor( abs( x ) + 0.5 );\n		}\n		#endif\n\n		float SMAASearchLength( sampler2D searchTex, vec2 e, float bias, float scale ) {\n			// Not required if searchTex accesses are set to point:\n			// float2 SEARCH_TEX_PIXEL_SIZE = 1.0 / float2(66.0, 33.0);\n			// e = float2(bias, 0.0) + 0.5 * SEARCH_TEX_PIXEL_SIZE +\n			//     e * float2(scale, 1.0) * float2(64.0, 32.0) * SEARCH_TEX_PIXEL_SIZE;\n			e.r = bias + e.r * scale;\n			return 255.0 * texture2D( searchTex, e, 0.0 ).r;\n		}\n\n		float SMAASearchXLeft( sampler2D edgesTex, sampler2D searchTex, vec2 texcoord, float end ) {\n			/**\n				* @PSEUDO_GATHER4\n				* This texcoord has been offset by (-0.25, -0.125) in the vertex shader to\n				* sample between edge, thus fetching four edges in a row.\n				* Sampling with different offsets in each direction allows to disambiguate\n				* which edges are active from the four fetched ones.\n				*/\n			vec2 e = vec2( 0.0, 1.0 );\n\n			for ( int i = 0; i < SMAA_MAX_SEARCH_STEPS; i ++ ) { // WebGL port note: Changed while to for\n				e = texture2D( edgesTex, texcoord, 0.0 ).rg;\n				texcoord -= vec2( 2.0, 0.0 ) * resolution;\n				if ( ! ( texcoord.x > end && e.g > 0.8281 && e.r == 0.0 ) ) break;\n			}\n\n			// We correct the previous (-0.25, -0.125) offset we applied:\n			texcoord.x += 0.25 * resolution.x;\n\n			// The searches are bias by 1, so adjust the coords accordingly:\n			texcoord.x += resolution.x;\n\n			// Disambiguate the length added by the last step:\n			texcoord.x += 2.0 * resolution.x; // Undo last step\n			texcoord.x -= resolution.x * SMAASearchLength(searchTex, e, 0.0, 0.5);\n\n			return texcoord.x;\n		}\n\n		float SMAASearchXRight( sampler2D edgesTex, sampler2D searchTex, vec2 texcoord, float end ) {\n			vec2 e = vec2( 0.0, 1.0 );\n\n			for ( int i = 0; i < SMAA_MAX_SEARCH_STEPS; i ++ ) { // WebGL port note: Changed while to for\n				e = texture2D( edgesTex, texcoord, 0.0 ).rg;\n				texcoord += vec2( 2.0, 0.0 ) * resolution;\n				if ( ! ( texcoord.x < end && e.g > 0.8281 && e.r == 0.0 ) ) break;\n			}\n\n			texcoord.x -= 0.25 * resolution.x;\n			texcoord.x -= resolution.x;\n			texcoord.x -= 2.0 * resolution.x;\n			texcoord.x += resolution.x * SMAASearchLength( searchTex, e, 0.5, 0.5 );\n\n			return texcoord.x;\n		}\n\n		float SMAASearchYUp( sampler2D edgesTex, sampler2D searchTex, vec2 texcoord, float end ) {\n			vec2 e = vec2( 1.0, 0.0 );\n\n			for ( int i = 0; i < SMAA_MAX_SEARCH_STEPS; i ++ ) { // WebGL port note: Changed while to for\n				e = texture2D( edgesTex, texcoord, 0.0 ).rg;\n				texcoord += vec2( 0.0, 2.0 ) * resolution; // WebGL port note: Changed sign\n				if ( ! ( texcoord.y > end && e.r > 0.8281 && e.g == 0.0 ) ) break;\n			}\n\n			texcoord.y -= 0.25 * resolution.y; // WebGL port note: Changed sign\n			texcoord.y -= resolution.y; // WebGL port note: Changed sign\n			texcoord.y -= 2.0 * resolution.y; // WebGL port note: Changed sign\n			texcoord.y += resolution.y * SMAASearchLength( searchTex, e.gr, 0.0, 0.5 ); // WebGL port note: Changed sign\n\n			return texcoord.y;\n		}\n\n		float SMAASearchYDown( sampler2D edgesTex, sampler2D searchTex, vec2 texcoord, float end ) {\n			vec2 e = vec2( 1.0, 0.0 );\n\n			for ( int i = 0; i < SMAA_MAX_SEARCH_STEPS; i ++ ) { // WebGL port note: Changed while to for\n				e = texture2D( edgesTex, texcoord, 0.0 ).rg;\n				texcoord -= vec2( 0.0, 2.0 ) * resolution; // WebGL port note: Changed sign\n				if ( ! ( texcoord.y < end && e.r > 0.8281 && e.g == 0.0 ) ) break;\n			}\n\n			texcoord.y += 0.25 * resolution.y; // WebGL port note: Changed sign\n			texcoord.y += resolution.y; // WebGL port note: Changed sign\n			texcoord.y += 2.0 * resolution.y; // WebGL port note: Changed sign\n			texcoord.y -= resolution.y * SMAASearchLength( searchTex, e.gr, 0.5, 0.5 ); // WebGL port note: Changed sign\n\n			return texcoord.y;\n		}\n\n		vec2 SMAAArea( sampler2D areaTex, vec2 dist, float e1, float e2, float offset ) {\n			// Rounding prevents precision errors of bilinear filtering:\n			vec2 texcoord = float( SMAA_AREATEX_MAX_DISTANCE ) * round( 4.0 * vec2( e1, e2 ) ) + dist;\n\n			// We do a scale and bias for mapping to texel space:\n			texcoord = SMAA_AREATEX_PIXEL_SIZE * texcoord + ( 0.5 * SMAA_AREATEX_PIXEL_SIZE );\n\n			// Move to proper place, according to the subpixel offset:\n			texcoord.y += SMAA_AREATEX_SUBTEX_SIZE * offset;\n\n			return texture2D( areaTex, texcoord, 0.0 ).rg;\n		}\n\n		vec4 SMAABlendingWeightCalculationPS( vec2 texcoord, vec2 pixcoord, vec4 offset[ 3 ], sampler2D edgesTex, sampler2D areaTex, sampler2D searchTex, ivec4 subsampleIndices ) {\n			vec4 weights = vec4( 0.0, 0.0, 0.0, 0.0 );\n\n			vec2 e = texture2D( edgesTex, texcoord ).rg;\n\n			if ( e.g > 0.0 ) { // Edge at north\n				vec2 d;\n\n				// Find the distance to the left:\n				vec2 coords;\n				coords.x = SMAASearchXLeft( edgesTex, searchTex, offset[ 0 ].xy, offset[ 2 ].x );\n				coords.y = offset[ 1 ].y; // offset[1].y = texcoord.y - 0.25 * resolution.y (@CROSSING_OFFSET)\n				d.x = coords.x;\n\n				// Now fetch the left crossing edges, two at a time using bilinear\n				// filtering. Sampling at -0.25 (see @CROSSING_OFFSET) enables to\n				// discern what value each edge has:\n				float e1 = texture2D( edgesTex, coords, 0.0 ).r;\n\n				// Find the distance to the right:\n				coords.x = SMAASearchXRight( edgesTex, searchTex, offset[ 0 ].zw, offset[ 2 ].y );\n				d.y = coords.x;\n\n				// We want the distances to be in pixel units (doing this here allow to\n				// better interleave arithmetic and memory accesses):\n				d = d / resolution.x - pixcoord.x;\n\n				// SMAAArea below needs a sqrt, as the areas texture is compressed\n				// quadratically:\n				vec2 sqrt_d = sqrt( abs( d ) );\n\n				// Fetch the right crossing edges:\n				coords.y -= 1.0 * resolution.y; // WebGL port note: Added\n				float e2 = SMAASampleLevelZeroOffset( edgesTex, coords, ivec2( 1, 0 ) ).r;\n\n				// Ok, we know how this pattern looks like, now it is time for getting\n				// the actual area:\n				weights.rg = SMAAArea( areaTex, sqrt_d, e1, e2, float( subsampleIndices.y ) );\n			}\n\n			if ( e.r > 0.0 ) { // Edge at west\n				vec2 d;\n\n				// Find the distance to the top:\n				vec2 coords;\n\n				coords.y = SMAASearchYUp( edgesTex, searchTex, offset[ 1 ].xy, offset[ 2 ].z );\n				coords.x = offset[ 0 ].x; // offset[1].x = texcoord.x - 0.25 * resolution.x;\n				d.x = coords.y;\n\n				// Fetch the top crossing edges:\n				float e1 = texture2D( edgesTex, coords, 0.0 ).g;\n\n				// Find the distance to the bottom:\n				coords.y = SMAASearchYDown( edgesTex, searchTex, offset[ 1 ].zw, offset[ 2 ].w );\n				d.y = coords.y;\n\n				// We want the distances to be in pixel units:\n				d = d / resolution.y - pixcoord.y;\n\n				// SMAAArea below needs a sqrt, as the areas texture is compressed\n				// quadratically:\n				vec2 sqrt_d = sqrt( abs( d ) );\n\n				// Fetch the bottom crossing edges:\n				coords.y -= 1.0 * resolution.y; // WebGL port note: Added\n				float e2 = SMAASampleLevelZeroOffset( edgesTex, coords, ivec2( 0, 1 ) ).g;\n\n				// Get the area for this direction:\n				weights.ba = SMAAArea( areaTex, sqrt_d, e1, e2, float( subsampleIndices.x ) );\n			}\n\n			return weights;\n		}\n\n		void main() {\n\n			gl_FragColor = SMAABlendingWeightCalculationPS( vUv, vPixcoord, vOffset, tDiffuse, tArea, tSearch, ivec4( 0.0 ) );\n\n		}"
-}, yl = {
+}, Tl = {
 	name: "SMAABlendShader",
 	uniforms: {
 		tDiffuse: { value: null },
@@ -13261,7 +13444,7 @@ var pl = {
 	},
 	vertexShader: "\n\n		uniform vec2 resolution;\n\n		varying vec2 vUv;\n		varying vec4 vOffset[ 2 ];\n\n		void SMAANeighborhoodBlendingVS( vec2 texcoord ) {\n			vOffset[ 0 ] = texcoord.xyxy + resolution.xyxy * vec4( -1.0, 0.0, 0.0, 1.0 ); // WebGL port note: Changed sign in W component\n			vOffset[ 1 ] = texcoord.xyxy + resolution.xyxy * vec4( 1.0, 0.0, 0.0, -1.0 ); // WebGL port note: Changed sign in W component\n		}\n\n		void main() {\n\n			vUv = uv;\n\n			SMAANeighborhoodBlendingVS( vUv );\n\n			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );\n\n		}",
 	fragmentShader: "\n\n		uniform sampler2D tDiffuse;\n		uniform sampler2D tColor;\n		uniform vec2 resolution;\n\n		varying vec2 vUv;\n		varying vec4 vOffset[ 2 ];\n\n		vec4 SMAANeighborhoodBlendingPS( vec2 texcoord, vec4 offset[ 2 ], sampler2D colorTex, sampler2D blendTex ) {\n			// Fetch the blending weights for current pixel:\n			vec4 a;\n			a.xz = texture2D( blendTex, texcoord ).xz;\n			a.y = texture2D( blendTex, offset[ 1 ].zw ).g;\n			a.w = texture2D( blendTex, offset[ 1 ].xy ).a;\n\n			// Is there any blending weight with a value greater than 0.0?\n			if ( dot(a, vec4( 1.0, 1.0, 1.0, 1.0 )) < 1e-5 ) {\n				return texture2D( colorTex, texcoord, 0.0 );\n			} else {\n				// Up to 4 lines can be crossing a pixel (one through each edge). We\n				// favor blending by choosing the line with the maximum weight for each\n				// direction:\n				vec2 offset;\n				offset.x = a.a > a.b ? a.a : -a.b; // left vs. right\n				offset.y = a.g > a.r ? -a.g : a.r; // top vs. bottom // WebGL port note: Changed signs\n\n				// Then we go in the direction that has the maximum weight:\n				if ( abs( offset.x ) > abs( offset.y )) { // horizontal vs. vertical\n					offset.y = 0.0;\n				} else {\n					offset.x = 0.0;\n				}\n\n				// Fetch the opposite color and lerp by hand:\n				vec4 C = texture2D( colorTex, texcoord, 0.0 );\n				texcoord += sign( offset ) * resolution;\n				vec4 Cop = texture2D( colorTex, texcoord, 0.0 );\n				float s = abs( offset.x ) > abs( offset.y ) ? abs( offset.x ) : abs( offset.y );\n\n				// WebGL port note: Added gamma correction\n				C.xyz = pow(C.xyz, vec3(2.2));\n				Cop.xyz = pow(Cop.xyz, vec3(2.2));\n				vec4 mixed = mix(C, Cop, s);\n				mixed.xyz = pow(mixed.xyz, vec3(1.0 / 2.2));\n\n				return mixed;\n			}\n		}\n\n		void main() {\n\n			gl_FragColor = SMAANeighborhoodBlendingPS( vUv, vOffset, tColor, tDiffuse );\n\n		}"
-}, bl = class extends Kc {
+}, El = class extends Qc {
 	constructor() {
 		super(), this._edgesRT = new it(1, 1, {
 			depthBuffer: !1,
@@ -13277,21 +13460,21 @@ var pl = {
 		let n = new Image();
 		n.src = this._getSearchTexture(), n.onload = function() {
 			e._searchTexture.needsUpdate = !0;
-		}, this._searchTexture = new tt(), this._searchTexture.name = "SMAAPass.search", this._searchTexture.image = n, this._searchTexture.magFilter = f, this._searchTexture.minFilter = f, this._searchTexture.generateMipmaps = !1, this._searchTexture.flipY = !1, this._uniformsEdges = Vr.clone(_l.uniforms), this._materialEdges = new Wr({
-			defines: Object.assign({}, _l.defines),
+		}, this._searchTexture = new tt(), this._searchTexture.name = "SMAAPass.search", this._searchTexture.image = n, this._searchTexture.magFilter = f, this._searchTexture.minFilter = f, this._searchTexture.generateMipmaps = !1, this._searchTexture.flipY = !1, this._uniformsEdges = Vr.clone(Cl.uniforms), this._materialEdges = new Wr({
+			defines: Object.assign({}, Cl.defines),
 			uniforms: this._uniformsEdges,
-			vertexShader: _l.vertexShader,
-			fragmentShader: _l.fragmentShader
-		}), this._uniformsWeights = Vr.clone(vl.uniforms), this._uniformsWeights.tDiffuse.value = this._edgesRT.texture, this._uniformsWeights.tArea.value = this._areaTexture, this._uniformsWeights.tSearch.value = this._searchTexture, this._materialWeights = new Wr({
-			defines: Object.assign({}, vl.defines),
+			vertexShader: Cl.vertexShader,
+			fragmentShader: Cl.fragmentShader
+		}), this._uniformsWeights = Vr.clone(wl.uniforms), this._uniformsWeights.tDiffuse.value = this._edgesRT.texture, this._uniformsWeights.tArea.value = this._areaTexture, this._uniformsWeights.tSearch.value = this._searchTexture, this._materialWeights = new Wr({
+			defines: Object.assign({}, wl.defines),
 			uniforms: this._uniformsWeights,
-			vertexShader: vl.vertexShader,
-			fragmentShader: vl.fragmentShader
-		}), this._uniformsBlend = Vr.clone(yl.uniforms), this._uniformsBlend.tDiffuse.value = this._weightsRT.texture, this._materialBlend = new Wr({
+			vertexShader: wl.vertexShader,
+			fragmentShader: wl.fragmentShader
+		}), this._uniformsBlend = Vr.clone(Tl.uniforms), this._uniformsBlend.tDiffuse.value = this._weightsRT.texture, this._materialBlend = new Wr({
 			uniforms: this._uniformsBlend,
-			vertexShader: yl.vertexShader,
-			fragmentShader: yl.fragmentShader
-		}), this._fsQuad = new Yc(null);
+			vertexShader: Tl.vertexShader,
+			fragmentShader: Tl.fragmentShader
+		}), this._fsQuad = new tl(null);
 	}
 	render(e, t, n) {
 		this._uniformsEdges.tDiffuse.value = n.texture, this._fsQuad.material = this._materialEdges, e.setRenderTarget(this._edgesRT), this.clear && e.clear(), this._fsQuad.render(e), this._fsQuad.material = this._materialWeights, e.setRenderTarget(this._weightsRT), this.clear && e.clear(), this._fsQuad.render(e), this._uniformsBlend.tColor.value = n.texture, this._fsQuad.material = this._materialBlend, this.renderToScreen ? (e.setRenderTarget(null), this._fsQuad.render(e)) : (e.setRenderTarget(t), this.clear && e.clear(), this._fsQuad.render(e));
@@ -13308,7 +13491,7 @@ var pl = {
 	_getSearchTexture() {
 		return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEIAAAAhCAAAAABIXyLAAAAAOElEQVRIx2NgGAWjYBSMglEwEICREYRgFBZBqDCSLA2MGPUIVQETE9iNUAqLR5gIeoQKRgwXjwAAGn4AtaFeYLEAAAAASUVORK5CYII=";
 	}
-}, xl = {
+}, Dl = {
 	name: "FXAAShader",
 	uniforms: {
 		tDiffuse: { value: null },
@@ -13316,9 +13499,9 @@ var pl = {
 	},
 	vertexShader: "\n\n		varying vec2 vUv;\n\n		void main() {\n\n			vUv = uv;\n			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );\n\n		}",
 	fragmentShader: "\n\n		uniform sampler2D tDiffuse;\n		uniform vec2 resolution;\n		varying vec2 vUv;\n\n		#define EDGE_STEP_COUNT 6\n		#define EDGE_GUESS 8.0\n		#define EDGE_STEPS 1.0, 1.5, 2.0, 2.0, 2.0, 4.0\n		const float edgeSteps[EDGE_STEP_COUNT] = float[EDGE_STEP_COUNT]( EDGE_STEPS );\n\n		float _ContrastThreshold = 0.0312;\n		float _RelativeThreshold = 0.063;\n		float _SubpixelBlending = 1.0;\n\n		vec4 Sample( sampler2D  tex2D, vec2 uv ) {\n\n			return texture( tex2D, uv );\n\n		}\n\n		float SampleLuminance( sampler2D tex2D, vec2 uv ) {\n\n			return dot( Sample( tex2D, uv ).rgb, vec3( 0.3, 0.59, 0.11 ) );\n\n		}\n\n		float SampleLuminance( sampler2D tex2D, vec2 texSize, vec2 uv, float uOffset, float vOffset ) {\n\n			uv += texSize * vec2(uOffset, vOffset);\n			return SampleLuminance(tex2D, uv);\n\n		}\n\n		struct LuminanceData {\n\n			float m, n, e, s, w;\n			float ne, nw, se, sw;\n			float highest, lowest, contrast;\n\n		};\n\n		LuminanceData SampleLuminanceNeighborhood( sampler2D tex2D, vec2 texSize, vec2 uv ) {\n\n			LuminanceData l;\n			l.m = SampleLuminance( tex2D, uv );\n			l.n = SampleLuminance( tex2D, texSize, uv,  0.0,  1.0 );\n			l.e = SampleLuminance( tex2D, texSize, uv,  1.0,  0.0 );\n			l.s = SampleLuminance( tex2D, texSize, uv,  0.0, -1.0 );\n			l.w = SampleLuminance( tex2D, texSize, uv, -1.0,  0.0 );\n\n			l.ne = SampleLuminance( tex2D, texSize, uv,  1.0,  1.0 );\n			l.nw = SampleLuminance( tex2D, texSize, uv, -1.0,  1.0 );\n			l.se = SampleLuminance( tex2D, texSize, uv,  1.0, -1.0 );\n			l.sw = SampleLuminance( tex2D, texSize, uv, -1.0, -1.0 );\n\n			l.highest = max( max( max( max( l.n, l.e ), l.s ), l.w ), l.m );\n			l.lowest = min( min( min( min( l.n, l.e ), l.s ), l.w ), l.m );\n			l.contrast = l.highest - l.lowest;\n			return l;\n\n		}\n\n		bool ShouldSkipPixel( LuminanceData l ) {\n\n			float threshold = max( _ContrastThreshold, _RelativeThreshold * l.highest );\n			return l.contrast < threshold;\n\n		}\n\n		float DeterminePixelBlendFactor( LuminanceData l ) {\n\n			float f = 2.0 * ( l.n + l.e + l.s + l.w );\n			f += l.ne + l.nw + l.se + l.sw;\n			f *= 1.0 / 12.0;\n			f = abs( f - l.m );\n			f = clamp( f / l.contrast, 0.0, 1.0 );\n\n			float blendFactor = smoothstep( 0.0, 1.0, f );\n			return blendFactor * blendFactor * _SubpixelBlending;\n\n		}\n\n		struct EdgeData {\n\n			bool isHorizontal;\n			float pixelStep;\n			float oppositeLuminance, gradient;\n\n		};\n\n		EdgeData DetermineEdge( vec2 texSize, LuminanceData l ) {\n\n			EdgeData e;\n			float horizontal =\n				abs( l.n + l.s - 2.0 * l.m ) * 2.0 +\n				abs( l.ne + l.se - 2.0 * l.e ) +\n				abs( l.nw + l.sw - 2.0 * l.w );\n			float vertical =\n				abs( l.e + l.w - 2.0 * l.m ) * 2.0 +\n				abs( l.ne + l.nw - 2.0 * l.n ) +\n				abs( l.se + l.sw - 2.0 * l.s );\n			e.isHorizontal = horizontal >= vertical;\n\n			float pLuminance = e.isHorizontal ? l.n : l.e;\n			float nLuminance = e.isHorizontal ? l.s : l.w;\n			float pGradient = abs( pLuminance - l.m );\n			float nGradient = abs( nLuminance - l.m );\n\n			e.pixelStep = e.isHorizontal ? texSize.y : texSize.x;\n\n			if (pGradient < nGradient) {\n\n				e.pixelStep = -e.pixelStep;\n				e.oppositeLuminance = nLuminance;\n				e.gradient = nGradient;\n\n			} else {\n\n				e.oppositeLuminance = pLuminance;\n				e.gradient = pGradient;\n\n			}\n\n			return e;\n\n		}\n\n		float DetermineEdgeBlendFactor( sampler2D  tex2D, vec2 texSize, LuminanceData l, EdgeData e, vec2 uv ) {\n\n			vec2 uvEdge = uv;\n			vec2 edgeStep;\n			if (e.isHorizontal) {\n\n				uvEdge.y += e.pixelStep * 0.5;\n				edgeStep = vec2( texSize.x, 0.0 );\n\n			} else {\n\n				uvEdge.x += e.pixelStep * 0.5;\n				edgeStep = vec2( 0.0, texSize.y );\n\n			}\n\n			float edgeLuminance = ( l.m + e.oppositeLuminance ) * 0.5;\n			float gradientThreshold = e.gradient * 0.25;\n\n			vec2 puv = uvEdge + edgeStep * edgeSteps[0];\n			float pLuminanceDelta = SampleLuminance( tex2D, puv ) - edgeLuminance;\n			bool pAtEnd = abs( pLuminanceDelta ) >= gradientThreshold;\n\n			for ( int i = 1; i < EDGE_STEP_COUNT && !pAtEnd; i++ ) {\n\n				puv += edgeStep * edgeSteps[i];\n				pLuminanceDelta = SampleLuminance( tex2D, puv ) - edgeLuminance;\n				pAtEnd = abs( pLuminanceDelta ) >= gradientThreshold;\n\n			}\n\n			if ( !pAtEnd ) {\n\n				puv += edgeStep * EDGE_GUESS;\n\n			}\n\n			vec2 nuv = uvEdge - edgeStep * edgeSteps[0];\n			float nLuminanceDelta = SampleLuminance( tex2D, nuv ) - edgeLuminance;\n			bool nAtEnd = abs( nLuminanceDelta ) >= gradientThreshold;\n\n			for ( int i = 1; i < EDGE_STEP_COUNT && !nAtEnd; i++ ) {\n\n				nuv -= edgeStep * edgeSteps[i];\n				nLuminanceDelta = SampleLuminance( tex2D, nuv ) - edgeLuminance;\n				nAtEnd = abs( nLuminanceDelta ) >= gradientThreshold;\n\n			}\n\n			if ( !nAtEnd ) {\n\n				nuv -= edgeStep * EDGE_GUESS;\n\n			}\n\n			float pDistance, nDistance;\n			if ( e.isHorizontal ) {\n\n				pDistance = puv.x - uv.x;\n				nDistance = uv.x - nuv.x;\n\n			} else {\n\n				pDistance = puv.y - uv.y;\n				nDistance = uv.y - nuv.y;\n\n			}\n\n			float shortestDistance;\n			bool deltaSign;\n			if ( pDistance <= nDistance ) {\n\n				shortestDistance = pDistance;\n				deltaSign = pLuminanceDelta >= 0.0;\n\n			} else {\n\n				shortestDistance = nDistance;\n				deltaSign = nLuminanceDelta >= 0.0;\n\n			}\n\n			if ( deltaSign == ( l.m - edgeLuminance >= 0.0 ) ) {\n\n				return 0.0;\n\n			}\n\n			return 0.5 - shortestDistance / ( pDistance + nDistance );\n\n		}\n\n		vec4 ApplyFXAA( sampler2D  tex2D, vec2 texSize, vec2 uv ) {\n\n			LuminanceData luminance = SampleLuminanceNeighborhood( tex2D, texSize, uv );\n			if ( ShouldSkipPixel( luminance ) ) {\n\n				return Sample( tex2D, uv );\n\n			}\n\n			float pixelBlend = DeterminePixelBlendFactor( luminance );\n			EdgeData edge = DetermineEdge( texSize, luminance );\n			float edgeBlend = DetermineEdgeBlendFactor( tex2D, texSize, luminance, edge, uv );\n			float finalBlend = max( pixelBlend, edgeBlend );\n\n			if (edge.isHorizontal) {\n\n				uv.y += edge.pixelStep * finalBlend;\n\n			} else {\n\n				uv.x += edge.pixelStep * finalBlend;\n\n			}\n\n			return Sample( tex2D, uv );\n\n		}\n\n		void main() {\n\n			gl_FragColor = ApplyFXAA( tDiffuse, resolution.xy, vUv );\n\n		}"
-}, Sl = class extends Xc {
+}, Ol = class extends nl {
 	constructor() {
-		super(xl);
+		super(Dl);
 	}
 	setSize(e, t) {
 		this.material.uniforms.resolution.value.set(1 / e, 1 / t);
@@ -13326,17 +13509,17 @@ var pl = {
 };
 //#endregion
 //#region src/postfx.js
-function Cl(e, t, n, r, i, a) {
+function kl(e, t, n, r, i, a) {
 	if (!r.enabled) return null;
-	let o = new $c(e, new it(i, a, {
+	let o = new al(e, new it(i, a, {
 		type: y,
 		samples: r.msaa ?? 0
 	}));
-	o.setPixelRatio(e.getPixelRatio()), o.setSize(i, a), o.addPass(new el(t, n));
+	o.setPixelRatio(e.getPixelRatio()), o.setSize(i, a), o.addPass(new ol(t, n));
 	let s = {};
 	if (r.ao) {
-		let e = new fl(t, n, i, a);
-		e.output = fl.OUTPUT.Default, e.blendIntensity = r.aoIntensity, e.updateGtaoMaterial({
+		let e = new vl(t, n, i, a);
+		e.output = vl.OUTPUT.Default, e.blendIntensity = r.aoIntensity, e.updateGtaoMaterial({
 			radius: .35,
 			distanceExponent: 1.5,
 			thickness: .6,
@@ -13352,14 +13535,14 @@ function Cl(e, t, n, r, i, a) {
 			radiusExponent: 1,
 			rings: 2,
 			samples: 8
-		}), wl(e), Tl(e), o.addPass(e), s.ao = e;
+		}), Al(e), jl(e), o.addPass(e), s.ao = e;
 	}
 	if (r.bloom) {
-		let e = new nl(new q(i, a), r.bloomStrength, r.bloomRadius, r.bloomThreshold);
+		let e = new cl(new q(i, a), r.bloomStrength, r.bloomRadius, r.bloomThreshold);
 		o.addPass(e), s.bloom = e;
 	}
 	if (r.dof) {
-		let e = new ml(t, n, {
+		let e = new bl(t, n, {
 			focus: r.dofFocus,
 			aperture: r.dofAperture,
 			maxblur: r.dofMaxBlur
@@ -13367,11 +13550,11 @@ function Cl(e, t, n, r, i, a) {
 		o.addPass(e), s.dof = e;
 	}
 	if (r.antialias === "smaa") {
-		let e = new bl();
+		let e = new El();
 		o.addPass(e), s.aa = e;
 	}
-	if (o.addPass(new gl()), r.antialias === "fxaa") {
-		let e = new Sl();
+	if (o.addPass(new Sl()), r.antialias === "fxaa") {
+		let e = new Ol();
 		o.addPass(e), s.aa = e;
 	}
 	return {
@@ -13388,7 +13571,7 @@ function Cl(e, t, n, r, i, a) {
 		}
 	};
 }
-function wl(e) {
+function Al(e) {
 	let t = [];
 	e._renderOverride = function(e, n, r, i, a) {
 		e.getClearColor(this._originalClearColor);
@@ -13400,7 +13583,7 @@ function wl(e) {
 		t.length = 0, e.autoClear = s, e.setClearColor(this._originalClearColor), e.setClearAlpha(o);
 	};
 }
-function Tl(e) {
+function jl(e) {
 	let t = e.gtaoMaterial;
 	t.fragmentShader = t.fragmentShader.split("normalize(viewDelta)").join("(viewDelta / max(length(viewDelta), 1e-6))").replace("vec2 sinHorizons = sqrt(1. - cosHorizons * cosHorizons);", "cosHorizons = clamp(cosHorizons, -1., 1.);\n				vec2 sinHorizons = sqrt(max(vec2(0.), 1. - cosHorizons * cosHorizons));").replace("gl_FragColor = FRAGMENT_OUTPUT;", "if (isnan(ao) || isinf(ao)) ao = 1.0;\n			gl_FragColor = FRAGMENT_OUTPUT;"), t.needsUpdate = !0;
 	let n = e.pdMaterial;
@@ -13408,9 +13591,14 @@ function Tl(e) {
 }
 //#endregion
 //#region src/shaders/noise.glsl?raw
-var El = "// Simplex noise (2D + 3D), Ashima Arts / Stefan Gustavson, MIT.\nvec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }\nvec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }\nvec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }\nvec3 permute(vec3 x) { return mod289(((x * 34.0) + 1.0) * x); }\nvec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }\nvec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }\n\nfloat snoise(vec2 v) {\n  const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);\n  vec2 i = floor(v + dot(v, C.yy));\n  vec2 x0 = v - i + dot(i, C.xx);\n  vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);\n  vec4 x12 = x0.xyxy + C.xxzz;\n  x12.xy -= i1;\n  i = mod289(i);\n  vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));\n  vec3 m = max(0.5 - vec3(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), 0.0);\n  m = m * m; m = m * m;\n  vec3 x = 2.0 * fract(p * C.www) - 1.0;\n  vec3 h = abs(x) - 0.5;\n  vec3 ox = floor(x + 0.5);\n  vec3 a0 = x - ox;\n  m *= 1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h);\n  vec3 g;\n  g.x = a0.x * x0.x + h.x * x0.y;\n  g.yz = a0.yz * x12.xz + h.yz * x12.yw;\n  return 130.0 * dot(m, g);\n}\n\nfloat snoise(vec3 v) {\n  const vec2 C = vec2(1.0 / 6.0, 1.0 / 3.0);\n  const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);\n  vec3 i = floor(v + dot(v, C.yyy));\n  vec3 x0 = v - i + dot(i, C.xxx);\n  vec3 g = step(x0.yzx, x0.xyz);\n  vec3 l = 1.0 - g;\n  vec3 i1 = min(g.xyz, l.zxy);\n  vec3 i2 = max(g.xyz, l.zxy);\n  vec3 x1 = x0 - i1 + C.xxx;\n  vec3 x2 = x0 - i2 + C.yyy;\n  vec3 x3 = x0 - D.yyy;\n  i = mod289(i);\n  vec4 p = permute(permute(permute(i.z + vec4(0.0, i1.z, i2.z, 1.0)) + i.y + vec4(0.0, i1.y, i2.y, 1.0)) + i.x + vec4(0.0, i1.x, i2.x, 1.0));\n  float n_ = 0.142857142857;\n  vec3 ns = n_ * D.wyz - D.xzx;\n  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);\n  vec4 x_ = floor(j * ns.z);\n  vec4 y_ = floor(j - 7.0 * x_);\n  vec4 x = x_ * ns.x + ns.yyyy;\n  vec4 y = y_ * ns.x + ns.yyyy;\n  vec4 h = 1.0 - abs(x) - abs(y);\n  vec4 b0 = vec4(x.xy, y.xy);\n  vec4 b1 = vec4(x.zw, y.zw);\n  vec4 s0 = floor(b0) * 2.0 + 1.0;\n  vec4 s1 = floor(b1) * 2.0 + 1.0;\n  vec4 sh = -step(h, vec4(0.0));\n  vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;\n  vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;\n  vec3 p0 = vec3(a0.xy, h.x);\n  vec3 p1 = vec3(a0.zw, h.y);\n  vec3 p2 = vec3(a1.xy, h.z);\n  vec3 p3 = vec3(a1.zw, h.w);\n  vec4 norm = taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));\n  p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;\n  vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);\n  m = m * m;\n  return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));\n}\n", Dl = "// Shared uniforms/attributes for anything that lives in the wind field (grass + flowers).\n// Injected into the vertex shader \"pars\" section of MeshPhysicalMaterial / MeshDepthMaterial.\nuniform float uTime;\nuniform vec2  uWindDir;       // normalised XZ direction\nuniform float uWindSpeed;\nuniform float uWindStrength;  // tip displacement in world units at full gust\nuniform float uWindScale;     // noise frequency (1 / metres)\n\nuniform vec3  uCursorPos;     // world-space point on the ground plane\nuniform float uCursorRadius;\nuniform float uCursorStrength;\nuniform vec2  uCursorVel;     // smoothed pointer velocity on the ground (XZ)\n\n#define MAX_FLOWERS 16\nuniform vec4  uFlowers[MAX_FLOWERS]; // x, z, bloom (0..1), seed\nuniform float uFlowerRadius;\nuniform float uFlowerStrength;\n\n// Per-instance: (phase, stiffness, colourSeed, heightFrac)\nattribute vec4 aBladeData;\n\nvarying float vHeight;     // 0 root .. 1 tip\nvarying float vColorSeed;\nvarying float vBend;       // 0..1 how much this vertex was displaced (used for shading)\nvarying vec3  vWorldRoot;\n\n// Returns the wind displacement (world XZ) for a blade rooted at `root`.\nvec2 windAt(vec2 root, float phase) {\n  vec2 flow = uWindDir * uTime * uWindSpeed;\n  float gust   = snoise(root * uWindScale        - flow);              // large gust fronts\n  float ripple = snoise(root * uWindScale * 4.0  - flow * 2.3 + phase); // small ripples\n  float w = gust * 0.75 + ripple * 0.35;\n  w = w * 0.5 + 0.5;                                                     // bias: wind rarely pushes backwards\n  vec2 side = vec2(-uWindDir.y, uWindDir.x);\n  return (uWindDir * w + side * ripple * 0.25) * uWindStrength;\n}\n\n// Radial push away from the cursor. Falloff is quadratic so the centre parts hard and the rim is soft.\nvec2 cursorPushAt(vec2 root) {\n  vec2 to = root - uCursorPos.xz;\n  float d = length(to);\n  float f = 1.0 - smoothstep(0.0, uCursorRadius, d);\n  f *= f;\n  vec2 dir = d > 1e-4 ? to / d : vec2(0.0, 1.0);\n  // blend radial push with the direction the pointer is moving (wake effect)\n  vec2 wake = uCursorVel * 0.35;\n  return (dir + wake) * f * uCursorStrength;\n}\n\n// Push away from every blooming flower, scaled by its bloom progress.\nvec2 flowerPushAt(vec2 root, out float yield) {\n  vec2 push = vec2(0.0);\n  yield = 0.0;\n  for (int i = 0; i < MAX_FLOWERS; i++) {\n    vec4 fl = uFlowers[i];\n    if (fl.z <= 0.001) continue;\n    vec2 to = root - fl.xy;\n    float d = length(to);\n    float r = uFlowerRadius * (0.35 + 0.65 * fl.z);\n    float f = 1.0 - smoothstep(0.0, r, d);\n    f *= f;\n    vec2 dir = d > 1e-4 ? to / d : vec2(1.0, 0.0);\n    push += dir * f * fl.z * uFlowerStrength;\n    yield = max(yield, f * fl.z);\n  }\n  return push;\n}\n", Ol = "// Grass-specific vertex helpers. Requires field_pars.vert.glsl to be included first.\n\nstruct Bend {\n  vec3  localDisp;  // XZ displacement in blade-local space\n  float newY;       // adjusted height after bending\n  float amount;     // 0..1 how far this vertex bent\n  vec3  dir;        // unit bend direction (local)\n  float yield;      // 0..1 flower influence\n  vec3  root;       // world root position\n};\n\nBend computeBend(vec3 pos, vec2 texcoord, vec4 bladeData) {\n  Bend b;\n  mat3 im = mat3(instanceMatrix);\n  float s2 = dot(im[0], im[0]);              // uniform scale^2 baked into the instance matrix\n  b.root = instanceMatrix[3].xyz;            // world-space root position\n  float t = texcoord.y;                      // 0 at root, 1 at tip\n  float stiffness = bladeData.y;\n\n  // ---- world-space displacement -------------------------------------------------\n  vec2 wind = windAt(b.root.xz, bladeData.x);\n  vec2 cursor = cursorPushAt(b.root.xz);\n  float yield;\n  vec2 flower = flowerPushAt(b.root.xz, yield);\n\n  // Static lean gives each blade an individual resting pose.\n  vec2 lean = vec2(sin(bladeData.x * 6.2831), cos(bladeData.x * 3.7)) * 0.05;\n\n  vec2 dispW = (wind + lean) * (1.0 - stiffness * 0.5) + cursor + flower;\n\n  // Displacement grows quadratically toward the tip: root pinned, tip swings most.\n  float w = t * t;\n  vec2 tipDisp = dispW * w;\n\n  // ---- world displacement -> local blade space --------------------------------------\n  // instanceMatrix = T * R * S with uniform S: inverse rotation is transpose / s^2.\n  vec3 localDisp = (transpose(im) * vec3(tipDisp.x, 0.0, tipDisp.y)) / s2;\n\n  // Preserve blade length: lower the vertex as it swings out (sqrt(y^2 - d^2)).\n  float y = pos.y;\n  float dLocal = length(localDisp);\n  float maxD = max(y, 1e-3);\n  if (dLocal > maxD) { localDisp *= maxD / dLocal; dLocal = maxD; }\n  float newY = sqrt(max(y * y - dLocal * dLocal, 0.0));\n\n  // Extra crush: blades directly under the cursor / a flower get pressed down.\n  float crush = clamp(length(cursor) / max(uCursorStrength, 1e-3), 0.0, 1.0) * 0.35 + yield * 0.25;\n  newY *= 1.0 - crush * w;\n\n  b.localDisp = localDisp;\n  b.newY = newY;\n  b.amount = clamp(dLocal / maxD, 0.0, 1.0);\n  b.dir = dLocal > 1e-5 ? localDisp / dLocal : vec3(0.0);\n  b.yield = yield;\n  return b;\n}\n", kl = "// Replaces <beginnormal_vertex> in the lit grass material: compute the bend once and\n// tilt the normal along it so lighting follows the curvature.\nvec3 objectNormal = vec3(normal);\n#ifdef USE_INSTANCING\n  #define GRASS_BEND_COMPUTED\n  Bend gBend = computeBend(position, uv, aBladeData);\n  objectNormal = normalize(objectNormal + gBend.dir * gBend.amount * 0.6);\n#endif\n", Al = "// Replaces <begin_vertex> in the grass material AND its shadow-depth material.\n// Bends the blade in LOCAL space so three.js's own instancing/shadow/env code keeps working.\nvec3 transformed = vec3(position);\n#ifdef USE_INSTANCING\n  #ifndef GRASS_BEND_COMPUTED\n    Bend gBend = computeBend(position, uv, aBladeData);\n  #endif\n  transformed.xz += gBend.localDisp.xz;\n  transformed.y = gBend.newY;\n  vHeight = uv.y;\n  vColorSeed = aBladeData.z;\n  vBend = gBend.amount;\n  vWorldRoot = gBend.root;\n#else\n  vHeight = uv.y;\n  vColorSeed = 0.5;\n  vBend = 0.0;\n  vWorldRoot = vec3(0.0);\n#endif\n", jl = "uniform vec3  uRootColor;\nuniform vec3  uTipColor;\nuniform vec3  uDryColor;       // hue drift toward straw for some blades\nuniform float uColorVariance;  // 0..1 amount of per-instance hue noise\nuniform float uRootAO;         // 0..1 darkness at the root (fake inter-blade occlusion)\nuniform vec3  uSSSColor;       // translucency tint (backlit glow)\nuniform float uSSSStrength;\nuniform float uSSSPower;\n\nvarying float vHeight;\nvarying float vColorSeed;\nvarying float vBend;\nvarying vec3  vWorldRoot;\n", Ml = "// Replaces <color_fragment>: per-instance / per-height colour before lighting.\n{\n  float h = vHeight;\n  // Root -> tip gradient, pushed toward the tip so most of the blade is mid-green.\n  vec3 c = mix(uRootColor, uTipColor, pow(h, 1.4));\n  // Some blades drift toward straw/yellow using the per-instance seed.\n  float dry = smoothstep(0.55, 1.0, vColorSeed) * uColorVariance;\n  c = mix(c, uDryColor, dry * (0.35 + 0.65 * h));\n  // Subtle hue noise across the field.\n  float hueN = (vColorSeed - 0.5) * 2.0 * uColorVariance;\n  c *= vec3(1.0 + hueN * 0.18, 1.0 + hueN * 0.06, 1.0 - hueN * 0.12);\n  // Fake inter-blade occlusion: roots live in the dark.\n  c *= mix(1.0 - uRootAO, 1.0, smoothstep(0.0, 0.75, h));\n  // Bent blades expose lighter undersides.\n  c *= 1.0 + vBend * 0.12;\n  diffuseColor.rgb *= c;\n}\n", Nl = "// Appended after <lights_fragment_end>: cheap subsurface / back-scatter so blades glow when backlit.\n#if NUM_DIR_LIGHTS > 0\n{\n  // Light direction in view space (points toward the light).\n  vec3 L = normalize(directionalLights[0].direction);\n  vec3 V = geometryViewDir;\n  // Light coming through the blade toward the viewer: strongest when looking into the sun through the blade.\n  float backlit = pow(saturate(dot(V, -L)), uSSSPower);\n  // Thin blades scatter regardless of normal; bias toward the thinner, brighter tip.\n  float thin = 0.35 + 0.65 * vHeight;\n  vec3 sss = uSSSColor * directionalLights[0].color * backlit * thin * uSSSStrength;\n  reflectedLight.directDiffuse += sss * diffuseColor.rgb;\n  // Ambient translucency from the environment (tips catch skylight from behind).\n  reflectedLight.indirectDiffuse += uSSSColor * 0.12 * uSSSStrength * vHeight * diffuseColor.rgb;\n}\n#endif\n", Pl = "// Flower-specific vertex helpers. Requires field_pars.vert.glsl first.\n// Per-instance animation state, updated from JS each frame: (bloom 0..1, wilt 0..1, seed, colourIndex)\nattribute vec4 aFlowerState;\n// Per-vertex: x = part (0 stem, 1 petal, 2 centre, 3 leaf), y = radial t along petal (0 base .. 1 tip)\nattribute vec2 aPart;\n\nvarying float vPart;\nvarying float vColorIdx;\nvarying float vWilt;\nvarying float vPetalT;\n\nstruct FlowerPose { vec3 pos; vec3 nrm; };\n\nFlowerPose poseFlower(vec3 pos, vec3 nrm) {\n  FlowerPose fp;\n  float bloom = aFlowerState.x;\n  float wilt  = aFlowerState.y;\n  float seed  = aFlowerState.z;\n  float part  = aPart.x;\n\n  float grow = smoothstep(0.0, 0.55, bloom);           // stem shoots up first\n  float open = smoothstep(0.3, 1.0, bloom) * (1.0 - wilt * 0.6); // then the head unfolds\n  float headScale = smoothstep(0.2, 1.0, bloom) * (1.0 - wilt * 0.35);\n\n  vec3 p = pos;\n  vec3 n = nrm;\n\n  if (part < 0.5) {\n    // Stem: grows in height, thickens slightly with bloom.\n    p.y *= grow;\n    p.xz *= 0.6 + 0.4 * grow;\n  } else if (part < 2.5) {\n    // Head (petals + centre): sits at the top of the stem (local y = 1).\n    vec3 rel = p - vec3(0.0, 1.0, 0.0);\n    float r = length(rel.xz);\n    vec2 dir = r > 1e-4 ? rel.xz / r : vec2(0.0);\n    if (part < 1.5) {\n      // Petal: blend between closed bud (pointing up) and open (flat with a gentle curl).\n      vec3 closed = vec3(dir * r * 0.18, 0.05 + r * 0.95);\n      vec3 opened = vec3(dir * r, rel.y + r * r * 0.9);   // curl upward at the tip\n      rel = mix(closed, opened, open);\n      n = normalize(mix(vec3(dir.x, 0.25, dir.y), n, open));\n    }\n    rel *= headScale;\n    p = vec3(0.0, grow, 0.0) + rel;\n  } else {\n    // Leaf: appears with growth, hangs off the stem.\n    p.y *= grow;\n    p.xz *= grow;\n  }\n\n  // Wilting: the whole head droops toward one side and sinks.\n  float droopDir = seed * 6.2831;\n  float droop = wilt * wilt;\n  if (part > 0.5 && part < 2.5) {\n    p.xz += vec2(cos(droopDir), sin(droopDir)) * droop * 0.45;\n    p.y  -= droop * 0.35;\n  } else if (part < 0.5) {\n    float ty = p.y;\n    p.xz += vec2(cos(droopDir), sin(droopDir)) * droop * 0.45 * ty * ty;\n    p.y  -= droop * 0.35 * ty * ty;\n  }\n\n  fp.pos = p;\n  fp.nrm = n;\n  return fp;\n}\n\n// World-space sway (wind) applied to the top of the flower, converted to local space.\nvec3 flowerSwayLocal(float y) {\n  mat3 im = mat3(instanceMatrix);\n  float s2 = dot(im[0], im[0]);\n  vec3 root = instanceMatrix[3].xyz;\n  vec2 wind = windAt(root.xz, aFlowerState.z * 10.0) * 0.35;\n  vec2 cursor = cursorPushAt(root.xz) * 0.25;\n  vec2 d = (wind + cursor) * y * y;\n  return (transpose(im) * vec3(d.x, 0.0, d.y)) / s2;\n}\n", Fl = "vec3 objectNormal = vec3(normal);\n#ifdef USE_INSTANCING\n  #define FLOWER_POSE_COMPUTED\n  FlowerPose gPose = poseFlower(position, normal);\n  objectNormal = gPose.nrm;\n#endif\n", Il = "vec3 transformed = vec3(position);\n#ifdef USE_INSTANCING\n  #ifndef FLOWER_POSE_COMPUTED\n    FlowerPose gPose = poseFlower(position, normal);\n  #endif\n  transformed = gPose.pos;\n  transformed += flowerSwayLocal(clamp(transformed.y, 0.0, 1.2));\n  vPart = aPart.x;\n  vPetalT = aPart.y;\n  vColorIdx = aFlowerState.w;\n  vWilt = aFlowerState.y;\n#else\n  vPart = aPart.x;\n  vPetalT = aPart.y;\n  vColorIdx = 0.0;\n  vWilt = 0.0;\n#endif\n", Ll = "uniform vec3 uPetalColors[4];\nuniform vec3 uCenterColor;\nuniform vec3 uStemColor;\nvarying float vPart;\nvarying float vColorIdx;\nvarying float vWilt;\nvarying float vPetalT;\n", Rl = "{\n  vec3 c;\n  if (vPart < 0.5 || vPart > 2.5) {\n    c = uStemColor * (0.8 + 0.2 * vPetalT);\n  } else if (vPart < 1.5) {\n    int idx = int(clamp(vColorIdx + 0.5, 0.0, 3.0));\n    vec3 petal = uPetalColors[idx];\n    // Darker/saturated toward the base, paler toward the petal tip.\n    c = mix(petal * 0.75, mix(petal, vec3(1.0), 0.35), smoothstep(0.1, 0.9, vPetalT));\n  } else {\n    c = uCenterColor;\n  }\n  // Wilting drains saturation and browns the flower.\n  float lum = dot(c, vec3(0.299, 0.587, 0.114));\n  c = mix(c, vec3(lum) * vec3(0.55, 0.42, 0.28), vWilt * 0.8);\n  diffuseColor.rgb *= c;\n}\n", zl = "uniform vec3 uGroundColorA;\nuniform vec3 uGroundColorB;\nuniform float uGroundScale;\nvarying vec3 vGroundWorld;\n", Bl = "{\n  // Mottled soil: layered noise so the ground is not a flat colour between blade clusters.\n  vec2 p = vGroundWorld.xz * uGroundScale;\n  float n = snoise(p) * 0.5 + snoise(p * 3.1 + 7.0) * 0.3 + snoise(p * 9.7 + 3.0) * 0.2;\n  n = n * 0.5 + 0.5;\n  diffuseColor.rgb *= mix(uGroundColorA, uGroundColorB, n);\n}\n", Vl = 16, Hl = class {
+var Ml = "// Simplex noise (2D + 3D), Ashima Arts / Stefan Gustavson, MIT.\nvec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }\nvec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }\nvec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }\nvec3 permute(vec3 x) { return mod289(((x * 34.0) + 1.0) * x); }\nvec4 permute(vec4 x) { return mod289(((x * 34.0) + 1.0) * x); }\nvec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }\n\nfloat snoise(vec2 v) {\n  const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);\n  vec2 i = floor(v + dot(v, C.yy));\n  vec2 x0 = v - i + dot(i, C.xx);\n  vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);\n  vec4 x12 = x0.xyxy + C.xxzz;\n  x12.xy -= i1;\n  i = mod289(i);\n  vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));\n  vec3 m = max(0.5 - vec3(dot(x0, x0), dot(x12.xy, x12.xy), dot(x12.zw, x12.zw)), 0.0);\n  m = m * m; m = m * m;\n  vec3 x = 2.0 * fract(p * C.www) - 1.0;\n  vec3 h = abs(x) - 0.5;\n  vec3 ox = floor(x + 0.5);\n  vec3 a0 = x - ox;\n  m *= 1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h);\n  vec3 g;\n  g.x = a0.x * x0.x + h.x * x0.y;\n  g.yz = a0.yz * x12.xz + h.yz * x12.yw;\n  return 130.0 * dot(m, g);\n}\n\nfloat snoise(vec3 v) {\n  const vec2 C = vec2(1.0 / 6.0, 1.0 / 3.0);\n  const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);\n  vec3 i = floor(v + dot(v, C.yyy));\n  vec3 x0 = v - i + dot(i, C.xxx);\n  vec3 g = step(x0.yzx, x0.xyz);\n  vec3 l = 1.0 - g;\n  vec3 i1 = min(g.xyz, l.zxy);\n  vec3 i2 = max(g.xyz, l.zxy);\n  vec3 x1 = x0 - i1 + C.xxx;\n  vec3 x2 = x0 - i2 + C.yyy;\n  vec3 x3 = x0 - D.yyy;\n  i = mod289(i);\n  vec4 p = permute(permute(permute(i.z + vec4(0.0, i1.z, i2.z, 1.0)) + i.y + vec4(0.0, i1.y, i2.y, 1.0)) + i.x + vec4(0.0, i1.x, i2.x, 1.0));\n  float n_ = 0.142857142857;\n  vec3 ns = n_ * D.wyz - D.xzx;\n  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);\n  vec4 x_ = floor(j * ns.z);\n  vec4 y_ = floor(j - 7.0 * x_);\n  vec4 x = x_ * ns.x + ns.yyyy;\n  vec4 y = y_ * ns.x + ns.yyyy;\n  vec4 h = 1.0 - abs(x) - abs(y);\n  vec4 b0 = vec4(x.xy, y.xy);\n  vec4 b1 = vec4(x.zw, y.zw);\n  vec4 s0 = floor(b0) * 2.0 + 1.0;\n  vec4 s1 = floor(b1) * 2.0 + 1.0;\n  vec4 sh = -step(h, vec4(0.0));\n  vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;\n  vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;\n  vec3 p0 = vec3(a0.xy, h.x);\n  vec3 p1 = vec3(a0.zw, h.y);\n  vec3 p2 = vec3(a1.xy, h.z);\n  vec3 p3 = vec3(a1.zw, h.w);\n  vec4 norm = taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));\n  p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;\n  vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);\n  m = m * m;\n  return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));\n}\n", Nl = "// Shared uniforms/attributes for anything that lives in the wind field (grass + flowers).\n// Injected into the vertex shader \"pars\" section of MeshPhysicalMaterial / MeshDepthMaterial.\nuniform float uTime;\nuniform vec2  uWindDir;       // normalised XZ direction\nuniform float uWindSpeed;\nuniform float uWindStrength;  // tip displacement in world units at full gust\nuniform float uWindScale;     // noise frequency (1 / metres)\n\nuniform vec3  uCursorPos;     // world-space point on the ground plane\nuniform float uCursorRadius;\nuniform float uCursorStrength;\nuniform vec2  uCursorVel;     // smoothed pointer velocity on the ground (XZ)\n\n#define MAX_FLOWERS 16\nuniform vec4  uFlowers[MAX_FLOWERS]; // x, z, bloom (0..1), seed\nuniform float uFlowerRadius;\nuniform float uFlowerStrength;\n\n// Per-instance: (phase, stiffness, colourSeed, heightFrac)\nattribute vec4 aBladeData;\n\nvarying float vHeight;     // 0 root .. 1 tip\nvarying float vColorSeed;\nvarying float vBend;       // 0..1 how much this vertex was displaced (used for shading)\nvarying vec3  vWorldRoot;\n\n// Returns the wind displacement (world XZ) for a blade rooted at `root`.\nvec2 windAt(vec2 root, float phase) {\n  vec2 flow = uWindDir * uTime * uWindSpeed;\n  float gust   = snoise(root * uWindScale        - flow);              // large gust fronts\n  float ripple = snoise(root * uWindScale * 4.0  - flow * 2.3 + phase); // small ripples\n  float w = gust * 0.75 + ripple * 0.35;\n  w = w * 0.5 + 0.5;                                                     // bias: wind rarely pushes backwards\n  vec2 side = vec2(-uWindDir.y, uWindDir.x);\n  return (uWindDir * w + side * ripple * 0.25) * uWindStrength;\n}\n\n// Radial push away from the cursor. Falloff is quadratic so the centre parts hard and the rim is soft.\nvec2 cursorPushAt(vec2 root) {\n  vec2 to = root - uCursorPos.xz;\n  float d = length(to);\n  float f = 1.0 - smoothstep(0.0, uCursorRadius, d);\n  f *= f;\n  vec2 dir = d > 1e-4 ? to / d : vec2(0.0, 1.0);\n  // blend radial push with the direction the pointer is moving (wake effect)\n  vec2 wake = uCursorVel * 0.35;\n  return (dir + wake) * f * uCursorStrength;\n}\n\n// Push away from every blooming flower, scaled by its bloom progress.\nvec2 flowerPushAt(vec2 root, out float yield) {\n  vec2 push = vec2(0.0);\n  yield = 0.0;\n  for (int i = 0; i < MAX_FLOWERS; i++) {\n    vec4 fl = uFlowers[i];\n    if (fl.z <= 0.001) continue;\n    vec2 to = root - fl.xy;\n    float d = length(to);\n    float r = uFlowerRadius * (0.35 + 0.65 * fl.z);\n    float f = 1.0 - smoothstep(0.0, r, d);\n    f *= f;\n    vec2 dir = d > 1e-4 ? to / d : vec2(1.0, 0.0);\n    push += dir * f * fl.z * uFlowerStrength;\n    yield = max(yield, f * fl.z);\n  }\n  return push;\n}\n", Pl = "// Grass-specific vertex helpers. Requires field_pars.vert.glsl to be included first.\n\nstruct Bend {\n  vec3  localDisp;  // XZ displacement in blade-local space\n  float newY;       // adjusted height after bending\n  float amount;     // 0..1 how far this vertex bent\n  vec3  dir;        // unit bend direction (local)\n  float yield;      // 0..1 flower influence\n  vec3  root;       // world root position\n};\n\nBend computeBend(vec3 pos, vec2 texcoord, vec4 bladeData) {\n  Bend b;\n  mat3 im = mat3(instanceMatrix);\n  float s2 = dot(im[0], im[0]);              // uniform scale^2 baked into the instance matrix\n  b.root = instanceMatrix[3].xyz;            // world-space root position\n  float t = texcoord.y;                      // 0 at root, 1 at tip\n  float stiffness = bladeData.y;\n\n  // ---- world-space displacement -------------------------------------------------\n  vec2 wind = windAt(b.root.xz, bladeData.x);\n  vec2 cursor = cursorPushAt(b.root.xz);\n  float yield;\n  vec2 flower = flowerPushAt(b.root.xz, yield);\n\n  // Static lean gives each blade an individual resting pose.\n  vec2 lean = vec2(sin(bladeData.x * 6.2831), cos(bladeData.x * 3.7)) * 0.05;\n\n  vec2 dispW = (wind + lean) * (1.0 - stiffness * 0.5) + cursor + flower;\n\n  // Displacement grows quadratically toward the tip: root pinned, tip swings most.\n  float w = t * t;\n  vec2 tipDisp = dispW * w;\n\n  // ---- world displacement -> local blade space --------------------------------------\n  // instanceMatrix = T * R * S with uniform S: inverse rotation is transpose / s^2.\n  vec3 localDisp = (transpose(im) * vec3(tipDisp.x, 0.0, tipDisp.y)) / s2;\n\n  // Preserve blade length: lower the vertex as it swings out (sqrt(y^2 - d^2)).\n  float y = pos.y;\n  float dLocal = length(localDisp);\n  float maxD = max(y, 1e-3);\n  if (dLocal > maxD) { localDisp *= maxD / dLocal; dLocal = maxD; }\n  float newY = sqrt(max(y * y - dLocal * dLocal, 0.0));\n\n  // Extra crush: blades directly under the cursor / a flower get pressed down.\n  float crush = clamp(length(cursor) / max(uCursorStrength, 1e-3), 0.0, 1.0) * 0.35 + yield * 0.25;\n  newY *= 1.0 - crush * w;\n\n  b.localDisp = localDisp;\n  b.newY = newY;\n  b.amount = clamp(dLocal / maxD, 0.0, 1.0);\n  b.dir = dLocal > 1e-5 ? localDisp / dLocal : vec3(0.0);\n  b.yield = yield;\n  return b;\n}\n", Fl = "// Replaces <beginnormal_vertex> in the lit grass material: compute the bend once and\n// tilt the normal along it so lighting follows the curvature.\nvec3 objectNormal = vec3(normal);\n#ifdef USE_INSTANCING\n  #define GRASS_BEND_COMPUTED\n  Bend gBend = computeBend(position, uv, aBladeData);\n  objectNormal = normalize(objectNormal + gBend.dir * gBend.amount * 0.6);\n#endif\n", Il = "// Replaces <begin_vertex> in the grass material AND its shadow-depth material.\n// Bends the blade in LOCAL space so three.js's own instancing/shadow/env code keeps working.\nvec3 transformed = vec3(position);\n#ifdef USE_INSTANCING\n  #ifndef GRASS_BEND_COMPUTED\n    Bend gBend = computeBend(position, uv, aBladeData);\n  #endif\n  transformed.xz += gBend.localDisp.xz;\n  transformed.y = gBend.newY;\n  vHeight = uv.y;\n  vColorSeed = aBladeData.z;\n  vBend = gBend.amount;\n  vWorldRoot = gBend.root;\n#else\n  vHeight = uv.y;\n  vColorSeed = 0.5;\n  vBend = 0.0;\n  vWorldRoot = vec3(0.0);\n#endif\n", Ll = "uniform vec3  uRootColor;\nuniform vec3  uTipColor;\nuniform vec3  uDryColor;       // hue drift toward straw for some blades\nuniform float uColorVariance;  // 0..1 amount of per-instance hue noise\nuniform float uRootAO;         // 0..1 darkness at the root (fake inter-blade occlusion)\nuniform vec3  uSSSColor;       // translucency tint (backlit glow)\nuniform float uSSSStrength;\nuniform float uSSSPower;\n\nvarying float vHeight;\nvarying float vColorSeed;\nvarying float vBend;\nvarying vec3  vWorldRoot;\n", Rl = "// Replaces <color_fragment>: per-instance / per-height colour before lighting.\n{\n  float h = vHeight;\n  // Root -> tip gradient, pushed toward the tip so most of the blade is mid-green.\n  vec3 c = mix(uRootColor, uTipColor, pow(h, 1.4));\n  // Some blades drift toward straw/yellow using the per-instance seed.\n  float dry = smoothstep(0.55, 1.0, vColorSeed) * uColorVariance;\n  c = mix(c, uDryColor, dry * (0.35 + 0.65 * h));\n  // Subtle hue noise across the field.\n  float hueN = (vColorSeed - 0.5) * 2.0 * uColorVariance;\n  c *= vec3(1.0 + hueN * 0.18, 1.0 + hueN * 0.06, 1.0 - hueN * 0.12);\n  // Fake inter-blade occlusion: roots live in the dark.\n  c *= mix(1.0 - uRootAO, 1.0, smoothstep(0.0, 0.75, h));\n  // Bent blades expose lighter undersides.\n  c *= 1.0 + vBend * 0.12;\n  diffuseColor.rgb *= c;\n}\n", zl = "// Appended after <lights_fragment_end>: cheap subsurface / back-scatter so blades glow when backlit.\n#if NUM_DIR_LIGHTS > 0\n{\n  // Light direction in view space (points toward the light).\n  vec3 L = normalize(directionalLights[0].direction);\n  vec3 V = geometryViewDir;\n  // Light coming through the blade toward the viewer: strongest when looking into the sun through the blade.\n  float backlit = pow(saturate(dot(V, -L)), uSSSPower);\n  // Thin blades scatter regardless of normal; bias toward the thinner, brighter tip.\n  float thin = 0.35 + 0.65 * vHeight;\n  vec3 sss = uSSSColor * directionalLights[0].color * backlit * thin * uSSSStrength;\n  reflectedLight.directDiffuse += sss * diffuseColor.rgb;\n  // Ambient translucency from the environment (tips catch skylight from behind).\n  reflectedLight.indirectDiffuse += uSSSColor * 0.12 * uSSSStrength * vHeight * diffuseColor.rgb;\n}\n#endif\n", Bl = "// Flower-specific vertex helpers. Requires field_pars.vert.glsl first.\n// Per-instance animation state, updated from JS each frame: (bloom 0..1, wilt 0..1, seed, colourIndex)\nattribute vec4 aFlowerState;\n// Per-vertex: x = part (0 stem, 1 petal, 2 centre, 3 leaf), y = radial t along petal (0 base .. 1 tip)\nattribute vec2 aPart;\n\nvarying float vPart;\nvarying float vColorIdx;\nvarying float vWilt;\nvarying float vPetalT;\n\nstruct FlowerPose { vec3 pos; vec3 nrm; };\n\nFlowerPose poseFlower(vec3 pos, vec3 nrm) {\n  FlowerPose fp;\n  float bloom = aFlowerState.x;\n  float wilt  = aFlowerState.y;\n  float seed  = aFlowerState.z;\n  float part  = aPart.x;\n\n  float grow = smoothstep(0.0, 0.55, bloom);           // stem shoots up first\n  float open = smoothstep(0.3, 1.0, bloom) * (1.0 - wilt * 0.6); // then the head unfolds\n  float headScale = smoothstep(0.2, 1.0, bloom) * (1.0 - wilt * 0.35);\n\n  vec3 p = pos;\n  vec3 n = nrm;\n\n  if (part < 0.5) {\n    // Stem: grows in height, thickens slightly with bloom.\n    p.y *= grow;\n    p.xz *= 0.6 + 0.4 * grow;\n  } else if (part < 2.5) {\n    // Head (petals + centre): sits at the top of the stem (local y = 1).\n    vec3 rel = p - vec3(0.0, 1.0, 0.0);\n    float r = length(rel.xz);\n    vec2 dir = r > 1e-4 ? rel.xz / r : vec2(0.0);\n    if (part < 1.5) {\n      // Petal: blend between closed bud (pointing up) and open (flat with a gentle curl).\n      vec3 closed = vec3(dir * r * 0.18, 0.05 + r * 0.95);\n      vec3 opened = vec3(dir * r, rel.y + r * r * 0.9);   // curl upward at the tip\n      rel = mix(closed, opened, open);\n      n = normalize(mix(vec3(dir.x, 0.25, dir.y), n, open));\n    }\n    rel *= headScale;\n    p = vec3(0.0, grow, 0.0) + rel;\n  } else {\n    // Leaf: appears with growth, hangs off the stem.\n    p.y *= grow;\n    p.xz *= grow;\n  }\n\n  // Wilting: the whole head droops toward one side and sinks.\n  float droopDir = seed * 6.2831;\n  float droop = wilt * wilt;\n  if (part > 0.5 && part < 2.5) {\n    p.xz += vec2(cos(droopDir), sin(droopDir)) * droop * 0.45;\n    p.y  -= droop * 0.35;\n  } else if (part < 0.5) {\n    float ty = p.y;\n    p.xz += vec2(cos(droopDir), sin(droopDir)) * droop * 0.45 * ty * ty;\n    p.y  -= droop * 0.35 * ty * ty;\n  }\n\n  fp.pos = p;\n  fp.nrm = n;\n  return fp;\n}\n\n// World-space sway (wind) applied to the top of the flower, converted to local space.\nvec3 flowerSwayLocal(float y) {\n  mat3 im = mat3(instanceMatrix);\n  float s2 = dot(im[0], im[0]);\n  vec3 root = instanceMatrix[3].xyz;\n  vec2 wind = windAt(root.xz, aFlowerState.z * 10.0) * 0.35;\n  vec2 cursor = cursorPushAt(root.xz) * 0.25;\n  vec2 d = (wind + cursor) * y * y;\n  return (transpose(im) * vec3(d.x, 0.0, d.y)) / s2;\n}\n", Vl = "vec3 objectNormal = vec3(normal);\n#ifdef USE_INSTANCING\n  #define FLOWER_POSE_COMPUTED\n  FlowerPose gPose = poseFlower(position, normal);\n  objectNormal = gPose.nrm;\n#endif\n", Hl = "vec3 transformed = vec3(position);\n#ifdef USE_INSTANCING\n  #ifndef FLOWER_POSE_COMPUTED\n    FlowerPose gPose = poseFlower(position, normal);\n  #endif\n  transformed = gPose.pos;\n  transformed += flowerSwayLocal(clamp(transformed.y, 0.0, 1.2));\n  vPart = aPart.x;\n  vPetalT = aPart.y;\n  vColorIdx = aFlowerState.w;\n  vWilt = aFlowerState.y;\n#else\n  vPart = aPart.x;\n  vPetalT = aPart.y;\n  vColorIdx = 0.0;\n  vWilt = 0.0;\n#endif\n", Ul = "uniform vec3 uPetalColors[4];\nuniform vec3 uCenterColor;\nuniform vec3 uStemColor;\nvarying float vPart;\nvarying float vColorIdx;\nvarying float vWilt;\nvarying float vPetalT;\n", Wl = "{\n  vec3 c;\n  if (vPart < 0.5 || vPart > 2.5) {\n    c = uStemColor * (0.8 + 0.2 * vPetalT);\n  } else if (vPart < 1.5) {\n    int idx = int(clamp(vColorIdx + 0.5, 0.0, 3.0));\n    vec3 petal = uPetalColors[idx];\n    // Darker/saturated toward the base, paler toward the petal tip.\n    c = mix(petal * 0.75, mix(petal, vec3(1.0), 0.35), smoothstep(0.1, 0.9, vPetalT));\n  } else {\n    c = uCenterColor;\n  }\n  // Wilting drains saturation and browns the flower.\n  float lum = dot(c, vec3(0.299, 0.587, 0.114));\n  c = mix(c, vec3(lum) * vec3(0.55, 0.42, 0.28), vWilt * 0.8);\n  diffuseColor.rgb *= c;\n}\n", Gl = "uniform vec3 uGroundColorA;\nuniform vec3 uGroundColorB;\nuniform float uGroundScale;\nvarying vec3 vGroundWorld;\nuniform sampler2D uShapeMask;\nuniform vec4 uShapeParams;   // threshold, band, edgeNoise, noiseFreq\nuniform vec2 uFieldSize;\n", Kl = "#ifdef GROUND_SHAPE_CLIP\n{\n  // Keep soil only inside the shape, with the same feathered + noise-jittered edge the blades use.\n  vec2 uvm = vGroundWorld.xz / uFieldSize + 0.5;\n  float m = texture2D(uShapeMask, uvm).r;\n  vec2 np = vGroundWorld.xz * uShapeParams.w;\n  float n = (snoise(np + vec2(31.0, 17.0)) * 0.6 + snoise(np * 2.0 + 5.0) * 0.4) * 0.5 * uShapeParams.z;\n  float edge = smoothstep(uShapeParams.x - uShapeParams.y, uShapeParams.x + uShapeParams.y, m + n);\n  if (edge < 0.45) discard;\n}\n#endif\n{\n  // Mottled soil: layered noise so the ground is not a flat colour between blade clusters.\n  vec2 p = vGroundWorld.xz * uGroundScale;\n  float n = snoise(p) * 0.5 + snoise(p * 3.1 + 7.0) * 0.3 + snoise(p * 9.7 + 3.0) * 0.2;\n  n = n * 0.5 + 0.5;\n  diffuseColor.rgb *= mix(uGroundColorA, uGroundColorB, n);\n}\n", ql = 16, Jl = class {
 	constructor(e, t = {}) {
-		this.container = e, this.config = Ac(kc, t), this.config.autoDetect && jc() && (this.config = Ac(this.config, this.config.lowPower), this.lowPower = !0), this.disposed = !1, this.ready = !1, this._raf = 0, this._visible = !0, this._pageVisible = !0, this._pointerActive = !1, this._pointerNDC = new q(), this._cursorTarget = new J(0, 0, 0), this._cursorSmoothed = new J(0, 0, 0), this._cursorPrev = new J(0, 0, 0), this._cursorVel = new q(), this._velScratch = new q(), this._cursorMix = 0, this._clock = {
+		this.container = e;
+		let n = kc;
+		t.shapeSource && (n = Ac(kc, kc.topDown), t = {
+			...t,
+			shapeSource: Ac(kc.shapeDefaults, t.shapeSource)
+		}), this.config = Ac(n, t), this.config.autoDetect && jc() && (this.config = Ac(this.config, this.config.lowPower), this.lowPower = !0), this.disposed = !1, this.ready = !1, this._raf = 0, this._visible = !0, this._pageVisible = !0, this._pointerActive = !1, this._pointerNDC = new q(), this._cursorTarget = new J(0, 0, 0), this._cursorSmoothed = new J(0, 0, 0), this._cursorPrev = new J(0, 0, 0), this._cursorVel = new q(), this._velScratch = new q(), this._cursorMix = 0, this._clock = {
 			start: performance.now(),
 			last: performance.now()
 		}, this._fps = {
@@ -13445,11 +13633,22 @@ var El = "// Simplex noise (2D + 3D), Ashima Arts / Stefan Gustavson, MIT.\nvec3
 		let r = Mc[e.shadows] ?? 2048;
 		n.shadowMap.enabled = r > 0, n.shadowMap.type = 1, e.background === null ? n.setClearColor(0, 0) : e.background !== "hdri" && n.setClearColor(new Z(e.background), 1);
 		let i = n.domElement;
-		i.style.cssText = "display:block;width:100%;height:100%;position:absolute;inset:0;touch-action:none;", i.setAttribute("aria-hidden", "true"), t.appendChild(i), this.canvas = i, this.scene = new Ut();
-		let a = e.camera;
-		this.camera = new Ii(a.fov, 1, a.near, a.far), this.camera.position.fromArray(a.position), this.camera.lookAt(new J().fromArray(a.target)), this.groundPlane = new qn(new J(0, 1, 0), 0), this.raycaster = new aa(), this._buildUniforms(), this._buildLights(), this._buildGround(), this._buildFlowers(), this._buildGrass().then(() => {
-			this.disposed || (this._buildPost(), this._bindEvents(), this._resize(), this.ready = !0, this._loop());
-		}), this._loadEnvironment(), e.debug && this._buildDebugOverlay();
+		i.style.cssText = "display:block;width:100%;height:100%;position:absolute;inset:0;touch-action:none;", i.setAttribute("aria-hidden", "true"), t.appendChild(i), this.canvas = i, this.scene = new Ut(), this.groundPlane = new qn(new J(0, 1, 0), 0), this.raycaster = new aa(), this._buildUniforms(), this._loadEnvironment(), e.debug && this._buildDebugOverlay(), this._setup().catch((e) => this._fail("Setup failed", e));
+	}
+	async _setup() {
+		if (this.config.shapeSource) try {
+			this.mask = await Gc(this.config.shapeSource), this.config.fieldSize = this.mask.fieldSize, this.shapeAspect = this.mask.aspect, this.uniforms.uShapeMask.value = this.mask.texture, this.uniforms.uShapeParams.value.set(this.mask.threshold, this.mask.band, this.mask.edgeNoise, this.mask.noiseFreq), this.uniforms.uFieldSize.value.fromArray(this.mask.fieldSize);
+		} catch (e) {
+			this._fail("Shape could not be rasterised; falling back to a rectangular field", e);
+		}
+		this.disposed || (this._buildCamera(), this._buildLights(), this._buildGround(), this._buildFlowers(), this._buildGrass(), !this.disposed && (this._buildPost(), this._bindEvents(), this._resize(), this.ready = !0, this._loop()));
+	}
+	_buildCamera() {
+		let e = this.config.camera;
+		if (e.type === "orthographic") {
+			let t = Re.degToRad(e.tilt ?? 8);
+			this.camera = new Li(-1, 1, 1, -1, .1, 70), this.camera.position.set(0, Math.cos(t) * 30, Math.sin(t) * 30), this.camera.up.set(0, 0, -1), this.camera.lookAt(0, 0, 0);
+		} else this.camera = new Ii(e.fov, 1, e.near, e.far), this.camera.position.fromArray(e.position), this.camera.lookAt(new J().fromArray(e.target));
 	}
 	_fail(e, t) {
 		console.warn("[grass-field]", e, t || ""), this.container.dispatchEvent(new CustomEvent("grassfield:error", { detail: {
@@ -13459,7 +13658,7 @@ var El = "// Simplex noise (2D + 3D), Ashima Arts / Stefan Gustavson, MIT.\nvec3
 	}
 	_buildUniforms() {
 		let e = this.config, t = new q().fromArray(e.wind.direction).normalize();
-		for (this.flowerUniform = Array.from({ length: Vl }, () => new nt(0, 0, 0, 0)), this.uniforms = {
+		for (this.flowerUniform = Array.from({ length: ql }, () => new nt(0, 0, 0, 0)), this.uniforms = {
 			uTime: { value: 0 },
 			uWindDir: { value: t },
 			uWindSpeed: { value: e.wind.speed },
@@ -13485,7 +13684,10 @@ var El = "// Simplex noise (2D + 3D), Ashima Arts / Stefan Gustavson, MIT.\nvec3
 			uStemColor: { value: new Z(e.flowers.stemColor) },
 			uGroundColorA: { value: new Z(e.colors.groundA) },
 			uGroundColorB: { value: new Z(e.colors.groundB) },
-			uGroundScale: { value: .6 }
+			uGroundScale: { value: .6 },
+			uShapeMask: { value: null },
+			uShapeParams: { value: new nt(.5, .035, .35, 2.2) },
+			uFieldSize: { value: new q().fromArray(e.fieldSize) }
 		}; this.uniforms.uPetalColors.value.length < 4;) this.uniforms.uPetalColors.value.push(new Z(e.flowers.petalColors[0]));
 	}
 	_buildLights() {
@@ -13500,40 +13702,39 @@ var El = "// Simplex noise (2D + 3D), Ashima Arts / Stefan Gustavson, MIT.\nvec3
 		this.sun = a;
 	}
 	_injectField(e, t = "", n = "") {
-		Object.assign(e.uniforms, this.uniforms), e.vertexShader = e.vertexShader.replace("#include <common>", `#include <common>\n${El}\n${Dl}\n${t}`), n && (e.fragmentShader = e.fragmentShader.replace("#include <common>", `#include <common>\n${n}`));
+		Object.assign(e.uniforms, this.uniforms), e.vertexShader = e.vertexShader.replace("#include <common>", `#include <common>\n${Ml}\n${Nl}\n${t}`), n && (e.fragmentShader = e.fragmentShader.replace("#include <common>", `#include <common>\n${n}`));
 	}
 	_buildGround() {
-		let [e, t] = this.config.fieldSize, n = new Fr(e * 1.4, t * 1.4, 1, 1);
-		n.rotateX(-Math.PI / 2);
-		let r = new Kr({
+		let e = this.config, [t, n] = e.fieldSize, r = this.mask ? e.shapeSource.ground ?? "shape" : "full";
+		if (r === "none") return;
+		let i = r === "shape" ? 1 : 1.4, a = new Fr(t * i, n * i, 1, 1);
+		a.rotateX(-Math.PI / 2);
+		let o = new Kr({
 			color: 16777215,
 			roughness: .95,
 			metalness: 0
 		});
-		r.onBeforeCompile = (e) => {
-			Object.assign(e.uniforms, this.uniforms), e.vertexShader = e.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vGroundWorld;").replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nvGroundWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;"), e.fragmentShader = e.fragmentShader.replace("#include <common>", `#include <common>\n${El}\n${zl}`).replace("#include <color_fragment>", `#include <color_fragment>\n${Bl}`);
+		r === "shape" && (o.defines = { GROUND_SHAPE_CLIP: 1 }), o.onBeforeCompile = (e) => {
+			Object.assign(e.uniforms, this.uniforms), e.vertexShader = e.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vGroundWorld;").replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nvGroundWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;"), e.fragmentShader = e.fragmentShader.replace("#include <common>", `#include <common>\n${Ml}\n${Gl}`).replace("#include <color_fragment>", `#include <color_fragment>\n${Kl}`);
 		};
-		let i = new pr(n, r);
-		i.receiveShadow = !0, i.position.y = -.005, this.scene.add(i), this.ground = i;
+		let s = new pr(a, o);
+		s.receiveShadow = !0, s.position.y = -.005, this.scene.add(s), this.ground = s;
 	}
-	async _buildGrass() {
-		let e = this.config, t = null;
-		if (e.mask) try {
-			t = await Bc(e.mask, e.fieldSize);
-		} catch (e) {
-			this._fail("Mask could not be rasterised; falling back to a full field", e);
-		}
-		if (this.disposed) return;
-		let { matrices: n, bladeData: r, count: i } = zc({
+	_buildGrass() {
+		let e = this.config, { matrices: t, bladeData: n, count: r } = Wc({
 			count: e.instanceCount,
 			fieldSize: e.fieldSize,
 			bladeHeight: e.bladeHeight,
 			clustering: e.clustering,
 			seed: e.seed,
-			mask: t
-		}), a = Nc({ width: e.bladeWidth });
-		a.setAttribute("aBladeData", new _r(r, 4));
-		let o = new qr({
+			mask: this.mask,
+			lean: e.bladeLean
+		}), i = Fc({
+			width: e.bladeWidth,
+			cross: e.bladeCross
+		});
+		i.setAttribute("aBladeData", new _r(n, 4));
+		let a = new qr({
 			color: 16777215,
 			roughness: .62,
 			metalness: 0,
@@ -13544,30 +13745,30 @@ var El = "// Simplex noise (2D + 3D), Ashima Arts / Stefan Gustavson, MIT.\nvec3
 			specularIntensity: .55,
 			envMapIntensity: e.envIntensity
 		});
-		o.onBeforeCompile = (e) => {
-			this._injectField(e, Ol, jl), e.vertexShader = e.vertexShader.replace("#include <beginnormal_vertex>", kl).replace("#include <begin_vertex>", Al), e.fragmentShader = e.fragmentShader.replace("#include <color_fragment>", `#include <color_fragment>\n${Ml}`).replace("#include <lights_fragment_end>", `#include <lights_fragment_end>\n${Nl}`);
-		}, o.customProgramCacheKey = () => "grass-field-blade";
-		let s = new Tr(a, o, i);
-		s.instanceMatrix.array.set(n), s.instanceMatrix.needsUpdate = !0, s.castShadow = !0, s.receiveShadow = !0, s.frustumCulled = !1;
-		let [c, l] = e.fieldSize;
-		a.boundingSphere = new Fn(new J(0, .4, 0), Math.hypot(c, l) * .5 + 1);
-		let u = new Yr({
+		a.onBeforeCompile = (e) => {
+			this._injectField(e, Pl, Ll), e.vertexShader = e.vertexShader.replace("#include <beginnormal_vertex>", Fl).replace("#include <begin_vertex>", Il), e.fragmentShader = e.fragmentShader.replace("#include <color_fragment>", `#include <color_fragment>\n${Rl}`).replace("#include <lights_fragment_end>", `#include <lights_fragment_end>\n${zl}`);
+		}, a.customProgramCacheKey = () => "grass-field-blade";
+		let o = new Tr(i, a, r);
+		o.instanceMatrix.array.set(t), o.instanceMatrix.needsUpdate = !0, o.castShadow = !0, o.receiveShadow = !0, o.frustumCulled = !1;
+		let [s, c] = e.fieldSize;
+		i.boundingSphere = new Fn(new J(0, .4, 0), Math.hypot(s, c) * .5 + 1);
+		let l = new Yr({
 			depthPacking: I,
 			side: 2
 		});
-		u.onBeforeCompile = (e) => {
-			this._injectField(e, Ol), e.vertexShader = e.vertexShader.replace("#include <begin_vertex>", Al);
-		}, u.customProgramCacheKey = () => "grass-field-blade-depth", s.customDepthMaterial = u;
-		let d = new Jr({
+		l.onBeforeCompile = (e) => {
+			this._injectField(e, Pl), e.vertexShader = e.vertexShader.replace("#include <begin_vertex>", Il);
+		}, l.customProgramCacheKey = () => "grass-field-blade-depth", o.customDepthMaterial = l;
+		let u = new Jr({
 			side: 2,
 			blending: 0
 		});
-		d.onBeforeCompile = (e) => {
-			this._injectField(e, Ol), e.vertexShader = e.vertexShader.replace("#include <beginnormal_vertex>", kl).replace("#include <begin_vertex>", Al);
-		}, d.customProgramCacheKey = () => "grass-field-blade-normal", s.userData.normalMaterial = d, this.scene.add(s), this.grass = s, this.bladeCount = i;
+		u.onBeforeCompile = (e) => {
+			this._injectField(e, Pl), e.vertexShader = e.vertexShader.replace("#include <beginnormal_vertex>", Fl).replace("#include <begin_vertex>", Il);
+		}, u.customProgramCacheKey = () => "grass-field-blade-normal", o.userData.normalMaterial = u, this.scene.add(o), this.grass = o, this.bladeCount = r;
 	}
 	_buildFlowers() {
-		let e = this.config, t = Math.min(e.flowers.max, Vl), n = Pc(), r = new Float32Array(t * 4), i = new _r(r, 4);
+		let e = this.config, t = Math.min(e.flowers.max, ql), n = Lc({ headScale: e.flowers.headScale ?? 1 }), r = new Float32Array(t * 4), i = new _r(r, 4);
 		i.setUsage(L), n.setAttribute("aFlowerState", i);
 		let a = new Kr({
 			color: 16777215,
@@ -13577,7 +13778,7 @@ var El = "// Simplex noise (2D + 3D), Ashima Arts / Stefan Gustavson, MIT.\nvec3
 			envMapIntensity: e.envIntensity
 		});
 		a.onBeforeCompile = (e) => {
-			this._injectField(e, Pl, Ll), e.vertexShader = e.vertexShader.replace("#include <beginnormal_vertex>", Fl).replace("#include <begin_vertex>", Il), e.fragmentShader = e.fragmentShader.replace("#include <color_fragment>", `#include <color_fragment>\n${Rl}`);
+			this._injectField(e, Bl, Ul), e.vertexShader = e.vertexShader.replace("#include <beginnormal_vertex>", Vl).replace("#include <begin_vertex>", Hl), e.fragmentShader = e.fragmentShader.replace("#include <color_fragment>", `#include <color_fragment>\n${Wl}`);
 		}, a.customProgramCacheKey = () => "grass-field-flower";
 		let o = new Tr(n, a, t), s = new st().makeScale(0, 0, 0);
 		for (let e = 0; e < t; e++) o.setMatrixAt(e, s);
@@ -13587,15 +13788,17 @@ var El = "// Simplex noise (2D + 3D), Ashima Arts / Stefan Gustavson, MIT.\nvec3
 			side: 2
 		});
 		c.onBeforeCompile = (e) => {
-			this._injectField(e, Pl), e.vertexShader = e.vertexShader.replace("#include <begin_vertex>", Il);
+			this._injectField(e, Bl), e.vertexShader = e.vertexShader.replace("#include <begin_vertex>", Hl);
 		}, c.customProgramCacheKey = () => "grass-field-flower-depth", o.customDepthMaterial = c;
 		let l = new Jr({
 			side: 2,
 			blending: 0
 		});
 		l.onBeforeCompile = (e) => {
-			this._injectField(e, Pl), e.vertexShader = e.vertexShader.replace("#include <beginnormal_vertex>", Fl).replace("#include <begin_vertex>", Il);
-		}, l.customProgramCacheKey = () => "grass-field-flower-normal", o.userData.normalMaterial = l, this.scene.add(o), this.flowerMesh = o, this.flowerPool = new Hc(e.flowers, Fc(e.seed ^ 2654435769), o, this.flowerUniform, r);
+			this._injectField(e, Bl), e.vertexShader = e.vertexShader.replace("#include <beginnormal_vertex>", Vl).replace("#include <begin_vertex>", Hl);
+		}, l.customProgramCacheKey = () => "grass-field-flower-normal", o.userData.normalMaterial = l, this.scene.add(o), this.flowerMesh = o;
+		let [u, d] = e.fieldSize, f = this.mask ? (e, t) => this.mask.inside(e / u + .5, t / d + .5, e, t) : (e, t) => Math.abs(e) <= u / 2 && Math.abs(t) <= d / 2;
+		this.flowerPool = new Jc(e.flowers, Rc(e.seed ^ 2654435769), o, this.flowerUniform, r, f);
 	}
 	_loadEnvironment() {
 		let e = this.config, t = e.assets.hdri;
@@ -13623,7 +13826,7 @@ var El = "// Simplex noise (2D + 3D), Ashima Arts / Stefan Gustavson, MIT.\nvec3
 	}
 	_buildPost() {
 		let { width: e, height: t } = this._size();
-		this.post = Cl(this.renderer, this.scene, this.camera, this.config.post, e, t);
+		this.post = kl(this.renderer, this.scene, this.camera, this.config.post, e, t);
 	}
 	_buildDebugOverlay() {
 		let e = document.createElement("div");
@@ -13665,7 +13868,13 @@ var El = "// Simplex noise (2D + 3D), Ashima Arts / Stefan Gustavson, MIT.\nvec3
 	_resize() {
 		if (!this.renderer) return;
 		let { width: e, height: t } = this._size();
-		this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.config.dprCap)), this.renderer.setSize(e, t, !1), this.camera.aspect = e / t, this.camera.updateProjectionMatrix(), this.post?.setSize(e, t);
+		this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.config.dprCap)), this.renderer.setSize(e, t, !1);
+		let n = e / t;
+		if (this.camera.isOrthographicCamera) {
+			let [e, t] = this.config.fieldSize, r = Re.degToRad(this.config.camera.tilt ?? 8), i = this.config.camera.padding ?? .3, a = e + i * 2, o = t * Math.cos(r) + this.config.bladeHeight[1] * Math.sin(r) + i * 2, s = a / 2, c = o / 2;
+			n > a / o ? s = c * n : c = s / n, this.camera.left = -s, this.camera.right = s, this.camera.top = c, this.camera.bottom = -c;
+		} else this.camera.aspect = n;
+		this.camera.updateProjectionMatrix(), this.post?.setSize(e, t);
 	}
 	_loop() {
 		!this.disposed && this.ready && (cancelAnimationFrame(this._raf), (!this.config.pauseWhenHidden || this._visible && this._pageVisible) && (this._raf = requestAnimationFrame(() => {
@@ -13715,21 +13924,21 @@ var El = "// Simplex noise (2D + 3D), Ashima Arts / Stefan Gustavson, MIT.\nvec3
 				let t = Array.isArray(e.material) ? e.material : [e.material];
 				for (let e of t) e?.dispose?.();
 				e.customDepthMaterial?.dispose?.(), e.userData?.normalMaterial?.dispose?.();
-			}), this.envTexture?.dispose(), this.scene?.background?.dispose?.(), this.sun?.shadow?.map && this.sun.shadow.map.dispose(), this.renderer && (this.renderer.dispose(), this.renderer.forceContextLoss(), this.renderer.domElement.remove()), this.debugEl?.remove(), this.renderer = null, this.scene = null;
+			}), this.envTexture?.dispose(), this.mask?.dispose(), this.scene?.background?.dispose?.(), this.sun?.shadow?.map && this.sun.shadow.map.dispose(), this.renderer && (this.renderer.dispose(), this.renderer.forceContextLoss(), this.renderer.domElement.remove()), this.debugEl?.remove(), this.renderer = null, this.scene = null;
 		}
 	}
-}, Ul = /* @__PURE__ */ new WeakMap();
-function Wl(e, t = {}) {
+}, Yl = /* @__PURE__ */ new WeakMap();
+function Xl(e, t = {}) {
 	let n = typeof e == "string" ? document.querySelector(e) : e;
 	if (!n) return console.warn("[grass-field] container not found:", e), null;
-	let r = Ul.get(n);
+	let r = Yl.get(n);
 	r && !r.disposed && r.dispose();
-	let i = new Hl(n, t);
-	return Ul.set(n, i), i;
+	let i = new Jl(n, t);
+	return Yl.set(n, i), i;
 }
-function Gl(e) {
-	let t = e instanceof Hl ? e : Ul.get(typeof e == "string" ? document.querySelector(e) : e);
-	t && (t.dispose(), Ul.delete(t.container));
+function Zl(e) {
+	let t = e instanceof Jl ? e : Yl.get(typeof e == "string" ? document.querySelector(e) : e);
+	t && (t.dispose(), Yl.delete(t.container));
 }
 //#endregion
-export { Hl as GrassField, kc as defaultConfig, Gl as dispose, Wl as mount };
+export { Jl as GrassField, kc as defaultConfig, Zl as dispose, Xl as mount };

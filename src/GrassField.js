@@ -1,5 +1,5 @@
 import {
-  Scene, PerspectiveCamera, WebGLRenderer, Color, Vector2, Vector3, Vector4, Plane, Raycaster,
+  Scene, PerspectiveCamera, OrthographicCamera, WebGLRenderer, Color, Vector2, Vector3, Vector4, Plane, Raycaster,
   InstancedMesh, InstancedBufferAttribute, DynamicDrawUsage, Matrix4,
   MeshPhysicalMaterial, MeshStandardMaterial, MeshDepthMaterial, MeshNormalMaterial, NoBlending, RGBADepthPacking, DoubleSide,
   PlaneGeometry, Mesh, DirectionalLight, PMREMGenerator, EquirectangularReflectionMapping,
@@ -10,7 +10,8 @@ import { HDRLoader } from 'three/addons/loaders/HDRLoader.js'; // successor of R
 import { defaultConfig, mergeConfig, isLowPowerDevice, SHADOW_MAP_SIZES } from './config.js';
 import { createBladeGeometry } from './geometry/bladeGeometry.js';
 import { createFlowerGeometry } from './geometry/flowerGeometry.js';
-import { scatterBlades, createMask, createRng } from './scatter.js';
+import { scatterBlades, createRng } from './scatter.js';
+import { createShapeMask } from './shape.js';
 import { FlowerPool } from './flowers.js';
 import { createPostFX } from './postfx.js';
 
@@ -35,7 +36,14 @@ const MAX_FLOWERS = 16;
 export class GrassField {
   constructor(container, options = {}) {
     this.container = container;
-    this.config = mergeConfig(defaultConfig, options);
+    // Shape-constrained fields get the topDown preset underneath the caller's options, and the
+    // shapeSource object is completed with shapeDefaults.
+    let base = defaultConfig;
+    if (options.shapeSource) {
+      base = mergeConfig(defaultConfig, defaultConfig.topDown);
+      options = { ...options, shapeSource: mergeConfig(defaultConfig.shapeDefaults, options.shapeSource) };
+    }
+    this.config = mergeConfig(base, options);
     if (this.config.autoDetect && isLowPowerDevice()) {
       this.config = mergeConfig(this.config, this.config.lowPower);
       this.lowPower = true;
@@ -97,28 +105,59 @@ export class GrassField {
     this.canvas = canvas;
 
     this.scene = new Scene();
-    const cam = cfg.camera;
-    this.camera = new PerspectiveCamera(cam.fov, 1, cam.near, cam.far);
-    this.camera.position.fromArray(cam.position);
-    this.camera.lookAt(new Vector3().fromArray(cam.target));
-
     this.groundPlane = new Plane(new Vector3(0, 1, 0), 0);
     this.raycaster = new Raycaster();
 
     this._buildUniforms();
+    this._loadEnvironment();
+    if (cfg.debug) this._buildDebugOverlay();
+    this._setup().catch((e) => this._fail('Setup failed', e));
+  }
+
+  async _setup() {
+    // Shape mask first: it decides the field size everything else is built around.
+    if (this.config.shapeSource) {
+      try {
+        this.mask = await createShapeMask(this.config.shapeSource);
+        this.config.fieldSize = this.mask.fieldSize;
+        this.shapeAspect = this.mask.aspect;
+        this.uniforms.uShapeMask.value = this.mask.texture;
+        this.uniforms.uShapeParams.value.set(this.mask.threshold, this.mask.band, this.mask.edgeNoise, this.mask.noiseFreq);
+        this.uniforms.uFieldSize.value.fromArray(this.mask.fieldSize);
+      } catch (e) {
+        this._fail('Shape could not be rasterised; falling back to a rectangular field', e);
+      }
+    }
+    if (this.disposed) return;
+    this._buildCamera();
     this._buildLights();
     this._buildGround();
     this._buildFlowers();
-    this._buildGrass().then(() => {
-      if (this.disposed) return;
-      this._buildPost();
-      this._bindEvents();
-      this._resize();
-      this.ready = true;
-      this._loop();
-    });
-    this._loadEnvironment();
-    if (cfg.debug) this._buildDebugOverlay();
+    this._buildGrass();
+    if (this.disposed) return;
+    this._buildPost();
+    this._bindEvents();
+    this._resize();
+    this.ready = true;
+    this._loop();
+  }
+
+  _buildCamera() {
+    const cam = this.config.camera;
+    if (cam.type === 'orthographic') {
+      // Top-down: straight above the field centre, tilted `cam.tilt` degrees toward +Z so thin
+      // blades keep a readable silhouette. Frustum extents are set in _resize().
+      const t = MathUtils.degToRad(cam.tilt ?? 8);
+      const dist = 30;
+      this.camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, dist * 2 + 10);
+      this.camera.position.set(0, Math.cos(t) * dist, Math.sin(t) * dist);
+      this.camera.up.set(0, 0, -1);
+      this.camera.lookAt(0, 0, 0);
+    } else {
+      this.camera = new PerspectiveCamera(cam.fov, 1, cam.near, cam.far);
+      this.camera.position.fromArray(cam.position);
+      this.camera.lookAt(new Vector3().fromArray(cam.target));
+    }
   }
 
   _fail(msg, err) {
@@ -158,6 +197,9 @@ export class GrassField {
       uGroundColorA: { value: new Color(cfg.colors.groundA) },
       uGroundColorB: { value: new Color(cfg.colors.groundB) },
       uGroundScale: { value: 0.6 },
+      uShapeMask: { value: null },
+      uShapeParams: { value: new Vector4(0.5, 0.035, 0.35, 2.2) }, // threshold, band, edgeNoise, noiseFreq
+      uFieldSize: { value: new Vector2().fromArray(cfg.fieldSize) },
     };
     while (this.uniforms.uPetalColors.value.length < 4) this.uniforms.uPetalColors.value.push(new Color(cfg.flowers.petalColors[0]));
   }
@@ -198,9 +240,13 @@ export class GrassField {
   _buildGround() {
     const cfg = this.config;
     const [w, d] = cfg.fieldSize;
-    const geo = new PlaneGeometry(w * 1.4, d * 1.4, 1, 1);
+    const mode = this.mask ? (cfg.shapeSource.ground ?? 'shape') : 'full';
+    if (mode === 'none') return;
+    const grow = mode === 'shape' ? 1.0 : 1.4;
+    const geo = new PlaneGeometry(w * grow, d * grow, 1, 1);
     geo.rotateX(-Math.PI / 2);
     const mat = new MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0 });
+    if (mode === 'shape') mat.defines = { GROUND_SHAPE_CLIP: 1 };
     mat.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, this.uniforms);
       shader.vertexShader = shader.vertexShader
@@ -217,21 +263,14 @@ export class GrassField {
     this.ground = ground;
   }
 
-  async _buildGrass() {
+  _buildGrass() {
     const cfg = this.config;
-    let mask = null;
-    if (cfg.mask) {
-      try { mask = await createMask(cfg.mask, cfg.fieldSize); }
-      catch (e) { this._fail('Mask could not be rasterised; falling back to a full field', e); }
-    }
-    if (this.disposed) return;
-
     const { matrices, bladeData, count } = scatterBlades({
       count: cfg.instanceCount, fieldSize: cfg.fieldSize, bladeHeight: cfg.bladeHeight,
-      clustering: cfg.clustering, seed: cfg.seed, mask,
+      clustering: cfg.clustering, seed: cfg.seed, mask: this.mask, lean: cfg.bladeLean,
     });
 
-    const geo = createBladeGeometry({ width: cfg.bladeWidth });
+    const geo = createBladeGeometry({ width: cfg.bladeWidth, cross: cfg.bladeCross });
     geo.setAttribute('aBladeData', new InstancedBufferAttribute(bladeData, 4));
 
     const mat = new MeshPhysicalMaterial({
@@ -294,7 +333,7 @@ export class GrassField {
   _buildFlowers() {
     const cfg = this.config;
     const max = Math.min(cfg.flowers.max, MAX_FLOWERS);
-    const geo = createFlowerGeometry();
+    const geo = createFlowerGeometry({ headScale: cfg.flowers.headScale ?? 1 });
     // The pool owns this array and rewrites it every frame; the attribute uploads it.
     const stateArray = new Float32Array(max * 4);
     const states = new InstancedBufferAttribute(stateArray, 4);
@@ -341,7 +380,12 @@ export class GrassField {
 
     this.scene.add(mesh);
     this.flowerMesh = mesh;
-    this.flowerPool = new FlowerPool(cfg.flowers, createRng(cfg.seed ^ 0x9e3779b9), mesh, this.flowerUniform, stateArray);
+    // Flowers only spawn where grass was placed: share the rasterised mask, never re-rasterise.
+    const [fw, fd] = cfg.fieldSize;
+    const canSpawn = this.mask
+      ? (x, z) => this.mask.inside(x / fw + 0.5, z / fd + 0.5, x, z)
+      : (x, z) => Math.abs(x) <= fw / 2 && Math.abs(z) <= fd / 2;
+    this.flowerPool = new FlowerPool(cfg.flowers, createRng(cfg.seed ^ 0x9e3779b9), mesh, this.flowerUniform, stateArray, canSpawn);
   }
 
   _loadEnvironment() {
@@ -446,7 +490,21 @@ export class GrassField {
     const { width, height } = this._size();
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.config.dprCap));
     this.renderer.setSize(width, height, false);
-    this.camera.aspect = width / height;
+    const aspect = width / height;
+    if (this.camera.isOrthographicCamera) {
+      // Contain the whole field (plus blade overhang) in the viewport, matching the shape's aspect;
+      // the container should use the same aspect ratio to avoid letterboxing (see README).
+      const [w, d] = this.config.fieldSize;
+      const t = MathUtils.degToRad(this.config.camera.tilt ?? 8);
+      const pad = this.config.camera.padding ?? 0.3;
+      const spanX = w + pad * 2;
+      const spanY = d * Math.cos(t) + this.config.bladeHeight[1] * Math.sin(t) + pad * 2;
+      let halfW = spanX / 2, halfH = spanY / 2;
+      if (aspect > spanX / spanY) halfW = halfH * aspect; else halfH = halfW / aspect;
+      this.camera.left = -halfW; this.camera.right = halfW; this.camera.top = halfH; this.camera.bottom = -halfH;
+    } else {
+      this.camera.aspect = aspect;
+    }
     this.camera.updateProjectionMatrix();
     this.post?.setSize(width, height);
   }
@@ -575,6 +633,7 @@ export class GrassField {
       obj.userData?.normalMaterial?.dispose?.();
     });
     this.envTexture?.dispose();
+    this.mask?.dispose();
     this.scene?.background?.dispose?.();
     if (this.sun?.shadow?.map) this.sun.shadow.map.dispose();
     if (this.renderer) {

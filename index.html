@@ -7,6 +7,7 @@
   <style>
     html, body { margin: 0; height: 100%; background: #0d1210; color: #cfd8d3; font: 14px/1.4 system-ui, sans-serif; }
     #grass { width: 100vw; height: 100vh; background: linear-gradient(#7fb2e6, #dfeaf3 60%, #9fb586); }
+    body.shape #grass { background: #eef1ea; }
     .hint { position: fixed; right: 12px; bottom: 12px; padding: 6px 10px; background: rgba(0,0,0,.5); border-radius: 6px; pointer-events: none; }
   </style>
 </head>
@@ -22,11 +23,23 @@
     if (q.has('ao')) opts.post = { ...(opts.post || {}), ao: q.get('ao') !== '0' };
     if (q.has('dof')) opts.post = { ...(opts.post || {}), dof: q.get('dof') === '1' };
     if (q.has('shadows')) opts.shadows = q.get('shadows');
-    if (q.has('mask')) opts.mask = { text: q.get('mask'), font: '900 sans-serif' };
-    if (q.get('cam') === 'top') opts.camera = { position: [0, 7.5, 6.5], target: [0, 0, -0.3], fov: 34 };
+    // Shape-constrained field: ?shape=1 (sample SVG) | ?shape=<url> | ?shape=text:HELLO
+    if (q.has('shape')) {
+      const v = q.get('shape');
+      opts.shapeSource = v === '1' ? { svg: '/shapes/sample-mark.svg' } : v.startsWith('text:') ? { text: v.slice(5) } : { svg: v };
+      if (q.has('tilt')) opts.camera = { tilt: Number(q.get('tilt')) };
+      if (q.has('cross')) opts.bladeCross = q.get('cross') === '1';
+      if (q.has('ground')) opts.shapeSource.ground = q.get('ground');
+      if (q.has('feather')) opts.shapeSource.feather = Number(q.get('feather'));
+      if (q.has('edgenoise')) opts.shapeSource.edgeNoise = Number(q.get('edgenoise'));
+      if (q.has('lean')) opts.bladeLean = q.get('lean').split(',').map(Number);
+      if (q.has('sunel')) opts.sun = { elevation: Number(q.get('sunel')) };
+    }
+    if (q.get('cam') === 'top') opts.camera = { ...(opts.camera || {}), type: 'perspective', position: [0, 7.5, 6.5], target: [0, 0, -0.3], fov: 34 };
     if (q.has('bg')) opts.background = q.get('bg');
     if (q.has('lowpower')) opts.autoDetect = false;
     if (q.has('dpr')) opts.dprCap = Number(q.get('dpr'));
+    if (opts.shapeSource) document.body.classList.add('shape');
     window.__field = mount(document.getElementById('grass'), opts);
   </script>
 </body>

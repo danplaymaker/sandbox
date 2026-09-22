@@ -1,11 +1,24 @@
 import { BufferGeometry, Float32BufferAttribute } from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /**
  * One low-poly grass blade: 1 unit tall, tapered, gently curved forward, with a
  * centre crease (3 verts per row) so it catches light like a folded leaf.
  * uv.y runs 0 (root) .. 1 (tip) and drives the bend weight in the vertex shader.
  */
-export function createBladeGeometry({ segments = 5, width = 0.045, curve = 0.12, crease = 0.25 } = {}) {
+export function createBladeGeometry({ segments = 5, width = 0.045, curve = 0.12, crease = 0.25, cross = false } = {}) {
+  const single = createSinglePlane({ segments, width, curve, crease });
+  if (!cross) return single;
+  // Cross-plane fallback for straight-down views: a second copy rotated 90° about Y so there is
+  // always a visible cross-section from above. Doubles the triangle count per blade.
+  const other = single.clone().rotateY(Math.PI / 2);
+  const merged = mergeGeometries([single, other], false);
+  single.dispose(); other.dispose();
+  merged.computeBoundingSphere();
+  return merged;
+}
+
+function createSinglePlane({ segments, width, curve, crease }) {
   const positions = [];
   const normals = [];
   const uvs = [];

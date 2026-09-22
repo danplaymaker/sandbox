@@ -6,7 +6,8 @@ import { BufferGeometry, Float32BufferAttribute } from 'three';
  * `aPart` per vertex: x = part id (0 stem, 1 petal, 2 centre, 3 leaf), y = radial t.
  * The vertex shader blends toward a closed bud / wilted pose from this.
  */
-export function createFlowerGeometry({ petals = 6, petalLength = 0.16, petalWidth = 0.075, stemWidth = 0.022 } = {}) {
+export function createFlowerGeometry({ petals = 6, petalLength = 0.16, petalWidth = 0.075, stemWidth = 0.022, headScale = 1 } = {}) {
+  petalLength *= headScale; petalWidth *= headScale;
   const positions = [];
   const normals = [];
   const uvs = [];
@@ -59,12 +60,12 @@ export function createFlowerGeometry({ petals = 6, petalLength = 0.16, petalWidt
     }
     for (let s = 0; s < segs; s++) {
       const a = base + s * 2;
-      indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+      indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); // front face up (+Y)
     }
   }
 
   // ---- centre disc ------------------------------------------------------------------
-  const centreR = 0.035;
+  const centreR = 0.035 * headScale;
   const cIdx = pushV(0, 1.012, 0, 0, 1, 0, 0.5, 0.5, 2, 0);
   const ring = [];
   const N = 8;
@@ -92,7 +93,7 @@ export function createFlowerGeometry({ petals = 6, petalLength = 0.16, petalWidt
     }
     for (let s = 0; s < segs; s++) {
       const a = base + s * 2;
-      indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+      indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); // front face up (+Y)
     }
   }
 

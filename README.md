@@ -13,7 +13,7 @@ with no runtime dependencies.
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173 — demo page with ?count= ?post=0 ?shadows=off ?dof=1 ?mask=HELLO&cam=top
+npm run dev        # http://localhost:5173 — demo: ?count= ?post=0 ?shadows=off ?dof=1 ?shape=1 (sample SVG) ?shape=text:HELLO ?tilt=8
 npm run build      # regenerates the HDRI, then writes dist/grass-field.js + dist/hdri/meadow-sky.hdr
 npm run screenshot # headless smoke test (software WebGL), writes ./screenshots
 ```
@@ -29,7 +29,8 @@ Requirements: Node 20+, a WebGL2-capable browser (Three.js r186 is WebGL2-only).
 | `src/config.js` | `defaultConfig` (every tunable), deep merge, low-power detection. |
 | `src/geometry/bladeGeometry.js` | One tapered, creased, curved blade (5 segments, 16 verts, 26 tris). |
 | `src/geometry/flowerGeometry.js` | Low-poly flower authored in its open pose (stem, 6 petals, centre, leaf). |
-| `src/scatter.js` | Noise-driven rejection-sampling scatter, per-instance data, silhouette masks. |
+| `src/scatter.js` | Noise-driven rejection-sampling scatter, per-instance data. |
+| `src/shape.js` | SVG/image/text rasterisation into a feathered placement mask + ground texture. |
 | `src/flowers.js` | Flower slot pool (spawn, bloom, hold, wilt, reuse). |
 | `src/postfx.js` | EffectComposer chain: GTAO, bloom, optional DoF, tone-mapped output. |
 | `src/shaders/*.glsl` | All GLSL, injected into Three's PBR materials via `onBeforeCompile`. |
@@ -42,7 +43,7 @@ Requirements: Node 20+, a WebGL2-capable browser (Three.js r186 is WebGL2-only).
 
 **Blades.** One blade mesh, rendered with `InstancedMesh` (single draw call). Instances are
 scattered by rejection sampling against a fractal-noise density so the field has clumps and
-thinner patches rather than a grid. Per-instance yaw, slight tilt, and uniform scale (height)
+thinner patches rather than a grid. Per-instance yaw, lean (`bladeLean`), and uniform scale (height)
 are baked into the instance matrix; phase, stiffness, colour seed and height fraction go into
 an `aBladeData` instanced attribute. Scatter is seeded, so a given `seed` always produces the
 same field.
@@ -116,23 +117,72 @@ Events on the container: `grassfield:ready` (HDRI loaded) and `grassfield:error`
 (`detail.message`, e.g. no WebGL). On error nothing is drawn, so give the container a
 background image as a static fallback.
 
-### Text / logo-shaped field (opt-in)
+### Shape-constrained field (SVG / image / text), shot top-down
+
+Set `shapeSource` and the field is placed only inside a silhouette, sized to the shape's
+bounding box, and shot from an orthographic camera straight above (the `topDown` preset in
+`config.js` is applied underneath your options whenever `shapeSource` is present):
 
 ```js
 mount('#grass-field', {
-  mask: { text: 'HELLO', font: '900 sans-serif', padding: 0.06, feather: 2 },
-  // or: mask: { image: 'https://cdn.example.com/logo.svg', useLuminance: false, invert: false },
-  camera: { position: [0, 7.5, 6.5], target: [0, 0, -0.3], fov: 34 },
+  shapeSource: { svg: 'https://cdn.example.com/grass/shapes/logo.svg' },   // or inline '<svg …>' markup
+  // shapeSource: { image: 'https://cdn.example.com/logo.png', useLuminance: true }, // black-on-white raster
+  // shapeSource: { text: 'HELLO', font: '900 sans-serif' },
   instanceCount: 40000,
+  background: null,
 });
 ```
 
-The mask is rasterised to an offscreen canvas at load and sampled as a placement probability
-(feathered edge). Use a higher camera than the default so the whole silhouette is in frame,
-and set `background` since the ground plane's edge becomes visible from up high. SVG/PNG
-images need CORS headers on their host.
+![shape-constrained field from above](docs/field-shape.jpg)
 
-![text mask](docs/field-mask.jpg)
+How it works (`src/shape.js`):
+
+- The SVG is fetched (or taken inline), given explicit pixel dimensions from its `viewBox`,
+  and rasterised to an offscreen canvas with the long edge at `resolution` (1024 px). Any SVG
+  structure the browser can draw works: multiple elements, compound paths with holes, groups,
+  transforms, text converted to paths. Live `<text>` depends on the viewer's fonts, and
+  external references (linked images, CSS) are not loaded, so convert text to outlines first.
+- Alpha (or luminance with `useLuminance: true`) becomes the coverage mask. It is trimmed to the
+  content's bounding box plus `margin` (6% of the long edge), and the ground plane and camera
+  frustum are sized to that box, so `fieldSize` is derived, not configured. `size` (12) sets
+  the long edge in world units, which is what controls blade size relative to the shape.
+- Placement is rejection sampling: random (x, z) in the box, accepted with probability
+  `smoothstep(threshold − feather, threshold + feather, blurredMask + noise)`. The mask is
+  box-blurred by `feather` (3.5% of the long edge) so the threshold sits on a gradient band
+  rather than a hard step, and a 3-octave value noise of amplitude `edgeNoise` (0.35 of the
+  mask range, at 2.2 cycles per world unit) jitters the threshold so the boundary is ragged.
+  These values put the visible edge within about ±0.3 world units of the vector outline:
+  enough to look grown rather than cut, without eating small features. For fine
+  lettering lower `feather` to 0.02 and `edgeNoise` to 0.2; for a blobby logo you can push
+  both up.
+- The same mask, threshold, band and noise are uploaded as a texture to the ground shader so
+  the soil is discarded outside the shape with a matching ragged edge (`ground: 'shape'`).
+  Use `ground: 'full'` for soil across the whole box or `'none'` for no soil.
+- Flowers spawn only where `mask.coverage ≥ 0.5` at the cursor. The rasterised mask is
+  shared between the scatter, the ground shader and the flower pool; it is never re-rasterised.
+
+Camera and lighting for the top-down view:
+
+- `camera.type: 'orthographic'`, tilted `camera.tilt` = **8°** off vertical toward +Z. From
+  0° a single-plane blade is a hairline, so the preset also bakes a static lean of 12–42° into
+  every blade (`bladeLean`) and widens them slightly (`bladeWidth` 0.06). The lean is what makes
+  blades read as blades from above; the 8° tilt on top adds a consistent side silhouette along
+  the lower edges of the shape. At 0° the shape still reads because of the lean, but it looks
+  flatter. The cross-plane blade (`bladeCross: true`, two intersecting planes per blade) is
+  implemented as the fallback the brief describes and was not needed at 8°.
+- The frustum contains the whole box plus `camera.padding` and then expands along the
+  container's longer axis, so nothing is cropped. To avoid letterboxing, give the container the
+  shape's aspect ratio: after mount, `field.shapeAspect` holds it, or set
+  `aspect-ratio: 640 / 400` in CSS from your SVG's viewBox.
+- The sun drops to **24° elevation** (from 28°) so blades throw visible shadows onto their
+  neighbours from above. That inter-blade shadowing is what gives the aerial view texture; the
+  material alone reads as a flat green fill. The HDRI is unchanged: its sun disc is a few degrees
+  higher than the light, which is invisible in practice. Flowers in this preset are taller than
+  the grass (`flowers.height` 0.95–1.2) with a 1.7× head so they clear the leaning blade tips,
+  and their petals are wound to face +Y so they are lit from above.
+
+Cursor raycasting is unchanged: `Raycaster.setFromCamera` handles orthographic cameras and the
+ground plane is still y = 0, so parting and flower spawning work as before within the shape.
 
 ## Performance
 

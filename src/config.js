@@ -8,6 +8,8 @@ export const defaultConfig = {
   fieldSize: [13, 8],       // world units (metres) [width X, depth Z]
   bladeHeight: [0.28, 0.75],// min/max blade height (world units); scale also widens the blade
   bladeWidth: 0.045,        // base width at scale 1
+  bladeLean: [0, 6],        // static lean range in degrees baked into each blade's pose
+  bladeCross: false,        // cross-plane blades (two planes per blade); fallback for straight-down views
   clustering: 0.55,         // 0 = uniform scatter, 1 = strongly clumped (noise-driven density)
   seed: 1337,
 
@@ -76,7 +78,8 @@ export const defaultConfig = {
     holdRadius: 1.3,        // a flower stays open while the cursor is within this distance
     radius: 0.9,            // grass yield radius around a blooming flower
     strength: 0.5,          // grass push distance around a blooming flower
-    height: [0.5, 0.8],
+    height: [0.5, 0.8],     // stem height range (world units)
+    headScale: 1,           // petal / centre size multiplier
     petalColors: ['#ffd4e5', '#fff5c2', '#e8d9ff', '#ffe9d1'],
     centerColor: '#ffbf3c',
     stemColor: '#4c8f34',
@@ -102,9 +105,38 @@ export const defaultConfig = {
     hdri: null,
   },
 
-  // ---- optional silhouette mask (stretch goal) -----------------------------------
-  // { text: 'HELLO', font: '900 200px sans-serif' } or { image: 'https://.../logo.svg' }
-  mask: null,
+  // ---- optional shape-constrained field --------------------------------------------
+  // Blades (and flowers) are placed only inside a silhouette rasterised from an SVG, a raster
+  // image, or text. The field is sized to the shape's bounding box (+ margin). When set, the
+  // `topDown` preset below is applied underneath your options (orthographic camera, low sun,
+  // leaning blades) unless you override those keys.
+  //   shapeSource: { svg: 'https://cdn/logo.svg' }      URL or inline '<svg …>' markup
+  //   shapeSource: { image: 'https://cdn/logo.png' }    raster; alpha channel (useLuminance: true for black-on-white)
+  //   shapeSource: { text: 'HELLO', font: '900 sans-serif' }
+  shapeSource: null,
+  shapeDefaults: {
+    size: 12,               // world units of the shape's long edge
+    margin: 0.06,           // fraction of the long edge added around the bounding box
+    resolution: 1024,       // rasterisation size of the long edge (px)
+    threshold: 0.5,         // coverage value where placement flips
+    feather: 0.035,         // half-width of the soft acceptance band (fraction of long edge; also blur radius)
+    edgeNoise: 0.35,        // amplitude of the noise offset on the threshold (ragged edge)
+    edgeNoiseScale: 2.2,    // noise frequency per world unit
+    useLuminance: false,
+    invert: false,
+    ground: 'shape',        // 'shape' (soil only inside the silhouette) | 'full' | 'none'
+  },
+  topDown: {
+    camera: { type: 'orthographic', tilt: 8, padding: 0.3 },
+    sun: { azimuth: 215, elevation: 24 },
+    bladeLean: [12, 42],
+    bladeWidth: 0.06,
+    bladeHeight: [0.28, 0.7],
+    clustering: 0.4,
+    cursor: { radius: 1.0, strength: 0.5 },
+    // From above a flower must clear the leaning blade tips (max grass 0.7) and needs a bigger head.
+    flowers: { height: [0.95, 1.2], headScale: 1.7, radius: 0.8 },
+  },
 
   // ---- device fallbacks --------------------------------------------------------
   autoDetect: true,         // detect low-power / mobile devices and apply `lowPower`

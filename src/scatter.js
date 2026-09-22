@@ -36,8 +36,11 @@ export function fbm(x, y, seed, octaves = 4) {
  * noise density function (clumps + bare patches) and an optional silhouette mask.
  * Returns instance matrices + per-instance data baked into typed arrays.
  */
+const _tiltQ = new Quaternion();
+const _xAxis = new Vector3(1, 0, 0);
+
 export function scatterBlades({
-  count, fieldSize, bladeHeight, clustering, seed, mask = null,
+  count, fieldSize, bladeHeight, clustering, seed, mask = null, lean = [0, 5],
 }) {
   const rng = createRng(seed);
   const [w, d] = fieldSize;
@@ -65,25 +68,24 @@ export function scatterBlades({
     const density = (1 - clustering) + clustering * Math.pow(Math.max(0, (n - 0.25) / 0.6), 1.5) * 1.6;
     if (rng() > density) continue;
 
-    // Optional silhouette mask (0..1). Soft edge: sample as a probability.
+    // Optional silhouette mask: feathered, noise-jittered acceptance probability.
     if (mask) {
-      const mv = mask.sample(x / w + 0.5, z / d + 0.5);
-      if (mv <= 0.02) continue;
-      if (rng() > mv) continue;
+      const cov = mask.coverage(x / w + 0.5, z / d + 0.5, x, z);
+      if (cov <= 0.001 || rng() > cov) continue;
     }
 
     // Per-instance variation. Height correlates with local density (thicker clumps grow taller).
     const hMix = Math.pow(rng(), 0.8) * 0.7 + n * 0.3;
     const height = bladeHeight[0] + (bladeHeight[1] - bladeHeight[0]) * hMix;
     const yaw = rng() * Math.PI * 2;
-    const tilt = (rng() - 0.5) * 0.18; // slight random lean baked into the pose
+    // Static lean baked into the pose (degrees). Top-down views need real lean so blades show
+    // their faces from above instead of reading as hairlines.
+    const leanDeg = lean[0] + (lean[1] - lean[0]) * Math.pow(rng(), 0.7);
+    const tilt = (leanDeg * Math.PI) / 180;
 
     pos.set(x, 0, z);
     quat.setFromAxisAngle(up, yaw);
-    if (tilt !== 0) {
-      const t = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), tilt);
-      quat.multiply(t);
-    }
+    if (tilt !== 0) quat.multiply(_tiltQ.setFromAxisAngle(_xAxis, tilt));
     scl.setScalar(height); // uniform scale: height also widens the blade (see shader inverse)
     m.compose(pos, quat, scl);
     m.toArray(matrices, placed * 16);
@@ -98,93 +100,4 @@ export function scatterBlades({
 
   // Rejection sampling may place fewer than requested (dense mask / low density): trim to fit.
   return { matrices: matrices.subarray(0, placed * 16), bladeData: bladeData.subarray(0, placed * 4), count: placed };
-}
-
-/**
- * Rasterise a text string or an image (SVG/PNG) into a coverage mask.
- * Returns { sample(u, v) -> 0..1 } with u along X, v along Z (0..1 across the field).
- */
-export async function createMask(maskConfig, fieldSize) {
-  const res = maskConfig.resolution || 512;
-  const aspect = fieldSize[0] / fieldSize[1];
-  const W = res, H = Math.max(8, Math.round(res / aspect));
-  const canvas = document.createElement('canvas');
-  canvas.width = W; canvas.height = H;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  ctx.clearRect(0, 0, W, H);
-  const padding = maskConfig.padding ?? 0.06;
-
-  if (maskConfig.text) {
-    ctx.fillStyle = '#fff';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    // Fit the text to the field width. `font` is a CSS font shorthand; any px size in it is
-    // replaced (e.g. '900 200px sans-serif' or 'bold "Arial Black"').
-    const base = maskConfig.font || '900 sans-serif';
-    const setFont = (size) => {
-      ctx.font = /\d+(\.\d+)?px/.test(base) ? base.replace(/\d+(\.\d+)?px/, `${size}px`) : base.replace(/(\S+)$/, `${size}px $1`);
-    };
-    let size = H * 0.8;
-    setFont(size);
-    while (ctx.measureText(maskConfig.text).width > W * (1 - padding * 2) && size > 4) {
-      size *= 0.92;
-      setFont(size);
-    }
-    ctx.fillText(maskConfig.text, W / 2, H / 2);
-  } else if (maskConfig.image) {
-    const img = await new Promise((resolve, reject) => {
-      const im = new Image();
-      im.crossOrigin = 'anonymous';
-      im.onload = () => resolve(im);
-      im.onerror = reject;
-      im.src = maskConfig.image;
-    });
-    const iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
-    const s = Math.min((W * (1 - padding * 2)) / iw, (H * (1 - padding * 2)) / ih);
-    const dw = iw * s, dh = ih * s;
-    ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
-  }
-
-  // Soft edge so the boundary looks natural instead of razor-cut.
-  const data = ctx.getImageData(0, 0, W, H).data;
-  const cov = new Float32Array(W * H);
-  for (let i = 0; i < W * H; i++) {
-    const a = data[i * 4 + 3] / 255;
-    const lum = (data[i * 4] + data[i * 4 + 1] + data[i * 4 + 2]) / (3 * 255);
-    cov[i] = maskConfig.image && maskConfig.useLuminance ? lum * a : a;
-  }
-  const blur = maskConfig.feather ?? 2;
-  const out = blur > 0 ? boxBlur(cov, W, H, blur) : cov;
-  const invert = !!maskConfig.invert;
-
-  return {
-    width: W, height: H,
-    sample(u, v) {
-      const x = Math.min(W - 1, Math.max(0, Math.floor(u * W)));
-      const y = Math.min(H - 1, Math.max(0, Math.floor(v * H)));
-      const c = out[y * W + x];
-      return invert ? 1 - c : c;
-    },
-  };
-}
-
-function boxBlur(src, W, H, r) {
-  const tmp = new Float32Array(W * H);
-  const out = new Float32Array(W * H);
-  const n = r * 2 + 1;
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      let s = 0;
-      for (let k = -r; k <= r; k++) s += src[y * W + Math.min(W - 1, Math.max(0, x + k))];
-      tmp[y * W + x] = s / n;
-    }
-  }
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      let s = 0;
-      for (let k = -r; k <= r; k++) s += tmp[Math.min(H - 1, Math.max(0, y + k)) * W + x];
-      out[y * W + x] = s / n;
-    }
-  }
-  return out;
 }

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400">
+  <!-- Placeholder mark for testing shape-constrained placement: a ring with a hole (evenodd),
+       a separate play triangle, and a detached wordmark-like bar. -->
+  <path fill="#000" fill-rule="evenodd" d="M200 200m-170 0a170 170 0 1 0 340 0a170 170 0 1 0 -340 0z M200 200m-118 0a118 118 0 1 0 236 0a118 118 0 1 0 -236 0z"/>
+  <path fill="#000" d="M160 118 L300 200 L160 282 Z"/>
+  <rect x="410" y="70" width="200" height="60" rx="30" fill="#000"/>
+  <rect x="410" y="170" width="200" height="60" rx="30" fill="#000"/>
+  <rect x="410" y="270" width="120" height="60" rx="30" fill="#000"/>
+</svg>

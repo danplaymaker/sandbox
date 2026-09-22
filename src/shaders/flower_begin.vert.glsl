@@ -3,7 +3,7 @@ vec3 transformed = vec3(position);
   #ifndef FLOWER_POSE_COMPUTED
     FlowerPose gPose = poseFlower(position, normal);
   #endif
-  transformed = gPose.pos;
+  transformed = aFlowerState.x <= 0.0 ? vec3(0.0) : gPose.pos; // dead slot -> degenerate (no fragments)
   transformed += flowerSwayLocal(clamp(transformed.y, 0.0, 1.2));
   vPart = aPart.x;
   vPetalT = aPart.y;

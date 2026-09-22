@@ -34,7 +34,7 @@ Bend computeBend(vec3 pos, vec2 texcoord, vec4 bladeData) {
 
   // ---- world displacement -> local blade space --------------------------------------
   // instanceMatrix = T * R * S with uniform S: inverse rotation is transpose / s^2.
-  vec3 localDisp = (transpose(im) * vec3(tipDisp.x, 0.0, tipDisp.y)) / s2;
+  vec3 localDisp = (transpose(im) * vec3(tipDisp.x, 0.0, tipDisp.y)) / max(s2, 1e-6);
 
   // Preserve blade length: lower the vertex as it swings out (sqrt(y^2 - d^2)).
   float y = pos.y;

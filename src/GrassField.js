@@ -356,8 +356,11 @@ export class GrassField {
     mat.customProgramCacheKey = () => 'grass-field-flower';
 
     const mesh = new InstancedMesh(geo, mat, max);
-    const zero = new Matrix4().makeScale(0, 0, 0);
-    for (let i = 0; i < max; i++) mesh.setMatrixAt(i, zero);
+    // Dead slots keep a unit-scale matrix: the shader collapses them to a point via bloom = 0.
+    // A zero-scale matrix would make the shader's inverse-rotation divide by zero (NaN vertices,
+    // which hardware GPUs rasterise as garbage and bloom then smears into full-frame flashes).
+    const parked = new Matrix4();
+    for (let i = 0; i < max; i++) mesh.setMatrixAt(i, parked);
     mesh.instanceMatrix.setUsage(DynamicDrawUsage);
     mesh.instanceMatrix.needsUpdate = true;
     mesh.castShadow = true;

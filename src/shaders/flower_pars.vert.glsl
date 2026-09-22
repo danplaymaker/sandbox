@@ -70,6 +70,7 @@ FlowerPose poseFlower(vec3 pos, vec3 nrm) {
 vec3 flowerSwayLocal(float y) {
   mat3 im = mat3(instanceMatrix);
   float s2 = dot(im[0], im[0]);
+  if (s2 < 1e-8 || aFlowerState.x <= 0.0) return vec3(0.0); // parked / dead slot: no sway, no divide
   vec3 root = instanceMatrix[3].xyz;
   vec2 wind = windAt(root.xz, aFlowerState.z * 10.0) * 0.35;
   vec2 cursor = cursorPushAt(root.xz) * 0.25;

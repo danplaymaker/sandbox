@@ -427,7 +427,7 @@ export class GrassField {
 
   _buildPost() {
     const { width, height } = this._size();
-    this.post = createPostFX(this.renderer, this.scene, this.camera, this.config.post, width, height);
+    this.post = createPostFX(this.renderer, this.scene, this.camera, this.config.post, width, height, { probe: !!this.config.debug });
   }
 
   _buildDebugOverlay() {
@@ -561,9 +561,11 @@ export class GrassField {
       if (now - f.t > 500) {
         f.value = Math.round((f.frames * 1000) / (now - f.t));
         f.frames = 0; f.t = now;
+        const pr = this.post?.passes.probe?.stats;
+        const probe = pr ? `\nprobe(${pr.samples} blocks): nan:${pr.nan}  hot:${pr.hot}  maxLum:${pr.maxLum.toFixed(2)}  thr:${cfg.post.bloomThreshold}` : '';
         this.debugEl.textContent =
           `${f.value} fps  blades:${this.bladeCount}  flowers:${this.flowerPool.liveCount}\n` +
-          `post:${this.post ? 'on' : 'off'}  shadows:${cfg.shadows}  dpr:${this.renderer.getPixelRatio().toFixed(2)}${this.lowPower ? '  (low-power)' : ''}`;
+          `post:${this.post ? 'on' : 'off'}  shadows:${cfg.shadows}  dpr:${this.renderer.getPixelRatio().toFixed(2)}${this.lowPower ? '  (low-power)' : ''}` + probe;
       }
     }
   }

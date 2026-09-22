@@ -13273,7 +13273,7 @@ function _l(e, t, n, r, i, a) {
 		composer: o,
 		passes: s,
 		setSize(e, t) {
-			o.setSize(e, t), s.bloom?.setSize(e, t), s.ao?.setSize(e, t);
+			o.setSize(e, t);
 		},
 		render() {
 			o.render();
@@ -13323,7 +13323,14 @@ var yl = "// Simplex noise (2D + 3D), Ashima Arts / Stefan Gustavson, MIT.\nvec3
 			this._fail("WebGL is not available", e);
 			return;
 		}
-		this.renderer = n, n.setPixelRatio(Math.min(window.devicePixelRatio || 1, e.dprCap)), n.outputColorSpace = ne, n.toneMapping = 4, n.toneMappingExposure = e.toneMappingExposure;
+		this.renderer = n, n.debug.onShaderError = (e, t, n, r) => {
+			let i = [
+				e.getShaderInfoLog(n),
+				e.getShaderInfoLog(r),
+				e.getProgramInfoLog(t)
+			].filter(Boolean).join("\n");
+			this._fail("Shader failed to compile on this GPU", i);
+		}, n.setPixelRatio(Math.min(window.devicePixelRatio || 1, e.dprCap)), n.outputColorSpace = ne, n.toneMapping = 4, n.toneMappingExposure = e.toneMappingExposure;
 		let r = Mc[e.shadows] ?? 2048;
 		n.shadowMap.enabled = r > 0, n.shadowMap.type = 1, e.background === null ? n.setClearColor(0, 0) : e.background !== "hdri" && n.setClearColor(new Z(e.background), 1);
 		let i = n.domElement;
@@ -13566,10 +13573,23 @@ var yl = "// Simplex noise (2D + 3D), Ashima Arts / Stefan Gustavson, MIT.\nvec3
 			let e = (this._cursorSmoothed.x - this._cursorPrev.x) / t, n = (this._cursorSmoothed.z - this._cursorPrev.z) / t;
 			this._cursorVel.lerp(this._velScratch.set(e, n).clampLength(0, 3), .25);
 		}
-		if (n.uCursorVel.value.copy(this._cursorVel), this.flowerPool.update(e, this._pointerActive ? this._cursorSmoothed : null, this._pointerActive), this.post ? this.post.render() : this.renderer.render(this.scene, this.camera), this.debugEl) {
+		if (n.uCursorVel.value.copy(this._cursorVel), this.flowerPool.update(e, this._pointerActive ? this._cursorSmoothed : null, this._pointerActive), this._selfChecked ? this._render() : this._selfCheckRender(), this.debugEl) {
 			let t = this._fps;
 			t.frames++, e - t.t > 500 && (t.value = Math.round(t.frames * 1e3 / (e - t.t)), t.frames = 0, t.t = e, this.debugEl.textContent = `${t.value} fps  blades:${this.bladeCount}  flowers:${this.flowerPool.liveCount}\npost:${this.post ? "on" : "off"}  shadows:${r.shadows}  dpr:${this.renderer.getPixelRatio().toFixed(2)}${this.lowPower ? "  (low-power)" : ""}`);
 		}
+	}
+	_render() {
+		this.post ? this.post.render() : this.renderer.render(this.scene, this.camera);
+	}
+	_selfCheckRender() {
+		this._selfChecked = !0;
+		let e = this.renderer.getContext(), t = () => {
+			let t = 0;
+			for (; e.getError() !== e.NO_ERROR && t++ < 16;);
+		}, n = () => (t(), this._render(), e.getError()), r = n();
+		if (r === e.NO_ERROR || !this.post) return;
+		let i = (e) => "0x" + e.toString(16);
+		this.config.post.msaa > 0 && (console.warn(`[grass-field] GL error ${i(r)} on first frame; disabling MSAA on the post-processing target`), this.config.post.msaa = 0, this.post.dispose(), this._buildPost(), r = n(), r === e.NO_ERROR) || (console.warn(`[grass-field] GL error ${i(r)} persists; disabling post-processing (set post.enabled:false to skip this check)`), this.config.post.enabled = !1, this.post.dispose(), this.post = null, t(), this._render(), this.container.dispatchEvent(new CustomEvent("grassfield:degraded", { detail: { glError: r } })));
 	}
 	setOptions(e) {
 		let t = this.config = Ac(this.config, e), n = this.uniforms;

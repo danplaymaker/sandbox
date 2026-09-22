@@ -51,9 +51,8 @@ export function createPostFX(renderer, scene, camera, cfg, width, height) {
     composer,
     passes,
     setSize(w, h) {
+      // EffectComposer forwards the DPR-scaled size to every pass; don't resize passes again.
       composer.setSize(w, h);
-      passes.bloom?.setSize(w, h);
-      passes.ao?.setSize(w, h);
     },
     render() { composer.render(); },
     dispose() {

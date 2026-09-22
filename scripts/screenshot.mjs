@@ -33,7 +33,7 @@ const browser = await chromium.launch({
   executablePath: exe,
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'],
 });
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: Number(process.env.DPR || 1) });
 page.setDefaultTimeout(180000); // software GL is slow
 const logs = [];
 page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`));

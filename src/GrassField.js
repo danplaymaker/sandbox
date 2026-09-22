@@ -76,6 +76,10 @@ export class GrassField {
       return;
     }
     this.renderer = renderer;
+    renderer.debug.onShaderError = (gl, program, vs, fs) => {
+      const log = [gl.getShaderInfoLog(vs), gl.getShaderInfoLog(fs), gl.getProgramInfoLog(program)].filter(Boolean).join('\n');
+      this._fail('Shader failed to compile on this GPU', log);
+    };
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.dprCap));
     renderer.outputColorSpace = SRGBColorSpace;
     renderer.toneMapping = ACESFilmicToneMapping;
@@ -483,8 +487,8 @@ export class GrassField {
     // Flowers
     this.flowerPool.update(now, this._pointerActive ? this._cursorSmoothed : null, this._pointerActive);
 
-    if (this.post) this.post.render();
-    else this.renderer.render(this.scene, this.camera);
+    if (!this._selfChecked) this._selfCheckRender();
+    else this._render();
 
     if (this.debugEl) {
       const f = this._fps;
@@ -497,6 +501,39 @@ export class GrassField {
           `post:${this.post ? 'on' : 'off'}  shadows:${cfg.shadows}  dpr:${this.renderer.getPixelRatio().toFixed(2)}${this.lowPower ? '  (low-power)' : ''}`;
       }
     }
+  }
+
+  _render() {
+    if (this.post) this.post.render();
+    else this.renderer.render(this.scene, this.camera);
+  }
+
+  /**
+   * First-frame GPU sanity check. Some drivers (Safari, some ANGLE/D3D configs) accept a
+   * multisampled half-float composer target and then fail every draw into it, leaving a blank
+   * canvas while JS keeps running. Render once, read the GL error state, and step down:
+   * MSAA off -> post-processing off. Logs what it did.
+   */
+  _selfCheckRender() {
+    this._selfChecked = true;
+    const gl = this.renderer.getContext();
+    const flush = () => { let n = 0; while (gl.getError() !== gl.NO_ERROR && n++ < 16); };
+    const tryRender = () => { flush(); this._render(); return gl.getError(); };
+    let err = tryRender();
+    if (err === gl.NO_ERROR || !this.post) return;
+    const hex = (e) => '0x' + e.toString(16);
+    if (this.config.post.msaa > 0) {
+      console.warn(`[grass-field] GL error ${hex(err)} on first frame; disabling MSAA on the post-processing target`);
+      this.config.post.msaa = 0;
+      this.post.dispose(); this._buildPost();
+      err = tryRender();
+      if (err === gl.NO_ERROR) return;
+    }
+    console.warn(`[grass-field] GL error ${hex(err)} persists; disabling post-processing (set post.enabled:false to skip this check)`);
+    this.config.post.enabled = false;
+    this.post.dispose(); this.post = null;
+    flush(); this._render();
+    this.container.dispatchEvent(new CustomEvent('grassfield:degraded', { detail: { glError: err } }));
   }
 
   // ----------------------------------------------------------------------------------

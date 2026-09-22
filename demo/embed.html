@@ -26,7 +26,13 @@
     window.__field = mount('#grass-field', {
       debug: q.has('debug'),
       instanceCount: q.has('count') ? Number(q.get('count')) : undefined,
-      post: q.has('post') ? { enabled: q.get('post') !== '0' } : undefined,
+      // Bisect switches: ?post=0 ?ao=0 ?bloom=0 ?msaa=0
+      post: {
+        enabled: q.get('post') !== '0',
+        ao: q.get('ao') !== '0',
+        bloom: q.get('bloom') !== '0',
+        msaa: q.has('msaa') ? Number(q.get('msaa')) : 4,
+      },
     });
   </script>
   <!-- ▲ Paste to here ▲ -->

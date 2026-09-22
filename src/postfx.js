@@ -29,6 +29,7 @@ export function createPostFX(renderer, scene, camera, cfg, width, height) {
     gtao.updateGtaoMaterial({ radius: 0.35, distanceExponent: 1.5, thickness: 0.6, scale: 1.0, samples: 12, distanceFallOff: 1.0, screenSpaceRadius: false });
     gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 4, radiusExponent: 1, rings: 2, samples: 8 });
     patchNormalPass(gtao);
+    hardenGtaoShaders(gtao);
     composer.addPass(gtao);
     passes.ao = gtao;
   }
@@ -95,4 +96,25 @@ function patchNormalPass(gtao) {
     renderer.setClearColor(this._originalClearColor);
     renderer.setClearAlpha(originalClearAlpha);
   };
+}
+
+/**
+ * GTAO's shader can produce NaN on real GPUs: `normalize()` of a zero sample delta, and
+ * `sqrt(1 - cos²)` / `acos(cos)` when cos drifts past 1 in half-float precision. Software GL
+ * returns 0 for normalize(0) so this never shows in headless tests, but on hardware a single
+ * NaN texel is multiplied into the scene colour and then smeared over the whole frame by the
+ * bloom blur (NaN -> white canvas). Clamp the maths and sanitise the outputs.
+ */
+function hardenGtaoShaders(gtao) {
+  const g = gtao.gtaoMaterial;
+  g.fragmentShader = g.fragmentShader
+    .split('normalize(viewDelta)').join('(viewDelta / max(length(viewDelta), 1e-6))')
+    .replace('vec2 sinHorizons = sqrt(1. - cosHorizons * cosHorizons);',
+             'cosHorizons = clamp(cosHorizons, -1., 1.);\n\t\t\t\tvec2 sinHorizons = sqrt(max(vec2(0.), 1. - cosHorizons * cosHorizons));')
+    .replace('gl_FragColor = FRAGMENT_OUTPUT;', 'if (isnan(ao) || isinf(ao)) ao = 1.0;\n\t\t\tgl_FragColor = FRAGMENT_OUTPUT;');
+  g.needsUpdate = true;
+  const pd = gtao.pdMaterial;
+  pd.fragmentShader = pd.fragmentShader
+    .replace('gl_FragColor = FRAGMENT_OUTPUT;', 'denoised = mix(denoised, vec3(1.0), vec3(isnan(denoised.x) || isinf(denoised.x)));\n\t\t\tgl_FragColor = FRAGMENT_OUTPUT;');
+  pd.needsUpdate = true;
 }

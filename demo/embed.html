@@ -1,0 +1,37 @@
+<!doctype html>
+<!--
+  Mirrors the Webflow Embed snippet from the README, but loads the LOCAL production build
+  (../dist/grass-field.js). Serve the repo root statically to try it:  npx vite preview --outDir . --port 4173
+  then open http://localhost:4173/demo/embed.html
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grass Field — production bundle test</title>
+  <style>
+    html, body { margin: 0; background: #e9f0ea; font: 16px/1.5 system-ui, sans-serif; }
+    .hero { position: relative; height: 80vh; min-height: 420px; background: linear-gradient(#8fc0ea, #e6eef0 70%); }
+    .hero h1 { position: absolute; left: 6vw; top: 12vh; margin: 0; font-size: clamp(32px, 6vw, 84px); color: #fff; text-shadow: 0 2px 24px rgba(0,0,0,.35); pointer-events: none; }
+    .content { padding: 6vh 6vw; max-width: 60ch; }
+  </style>
+</head>
+<body>
+  <section class="hero">
+  <!-- ▼ Paste from here into a Webflow Embed block (the Embed sits inside the hero section) ▼ -->
+  <div id="grass-field" style="position:absolute;inset:0;"></div>
+  <script type="module">
+    import { mount } from '../dist/grass-field.js';
+    const q = new URLSearchParams(location.search);
+    window.__field = mount('#grass-field', {
+      debug: q.has('debug'),
+      instanceCount: q.has('count') ? Number(q.get('count')) : undefined,
+      post: q.has('post') ? { enabled: q.get('post') !== '0' } : undefined,
+    });
+  </script>
+  <!-- ▲ Paste to here ▲ -->
+  <h1>Grass Field</h1>
+  </section>
+  <section class="content"><p>Move the pointer over the hero. Content below keeps scrolling normally; the field pauses its render loop when off-screen.</p></section>
+</body>
+</html>

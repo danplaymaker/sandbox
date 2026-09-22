@@ -1,0 +1,21 @@
+{
+  "name": "grass-field",
+  "version": "1.0.0",
+  "description": "Interactive WebGL grass field with cursor-bloom flowers (Three.js). Embeddable in Webflow via a single ES module bundle.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "node scripts/gen-hdri.mjs && vite build",
+    "preview": "vite preview",
+    "gen:hdri": "node scripts/gen-hdri.mjs",
+    "screenshot": "node scripts/screenshot.mjs"
+  },
+  "dependencies": {
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.55.0",
+    "vite": "^8.3.0"
+  }
+}

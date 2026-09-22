@@ -1,0 +1,552 @@
+import {
+  Scene, PerspectiveCamera, WebGLRenderer, Color, Vector2, Vector3, Vector4, Plane, Raycaster,
+  InstancedMesh, InstancedBufferAttribute, DynamicDrawUsage, Matrix4,
+  MeshPhysicalMaterial, MeshStandardMaterial, MeshDepthMaterial, MeshNormalMaterial, NoBlending, RGBADepthPacking, DoubleSide,
+  PlaneGeometry, Mesh, DirectionalLight, PMREMGenerator, EquirectangularReflectionMapping,
+  ACESFilmicToneMapping, SRGBColorSpace, PCFShadowMap, MathUtils, Sphere,
+} from 'three';
+import { HDRLoader } from 'three/addons/loaders/HDRLoader.js'; // successor of RGBELoader (same .hdr / RGBE format)
+
+import { defaultConfig, mergeConfig, isLowPowerDevice, SHADOW_MAP_SIZES } from './config.js';
+import { createBladeGeometry } from './geometry/bladeGeometry.js';
+import { createFlowerGeometry } from './geometry/flowerGeometry.js';
+import { scatterBlades, createMask, createRng } from './scatter.js';
+import { FlowerPool } from './flowers.js';
+import { createPostFX } from './postfx.js';
+
+import noiseGLSL from './shaders/noise.glsl?raw';
+import fieldParsVert from './shaders/field_pars.vert.glsl?raw';
+import grassParsVert from './shaders/grass_pars.vert.glsl?raw';
+import grassBeginNormalVert from './shaders/grass_beginnormal.vert.glsl?raw';
+import grassBeginVert from './shaders/grass_begin.vert.glsl?raw';
+import grassParsFrag from './shaders/grass_pars.frag.glsl?raw';
+import grassColorFrag from './shaders/grass_color.frag.glsl?raw';
+import grassLightsFrag from './shaders/grass_lights.frag.glsl?raw';
+import flowerParsVert from './shaders/flower_pars.vert.glsl?raw';
+import flowerBeginNormalVert from './shaders/flower_beginnormal.vert.glsl?raw';
+import flowerBeginVert from './shaders/flower_begin.vert.glsl?raw';
+import flowerParsFrag from './shaders/flower_pars.frag.glsl?raw';
+import flowerColorFrag from './shaders/flower_color.frag.glsl?raw';
+import groundParsFrag from './shaders/ground_pars.frag.glsl?raw';
+import groundColorFrag from './shaders/ground_color.frag.glsl?raw';
+
+const MAX_FLOWERS = 16;
+
+export class GrassField {
+  constructor(container, options = {}) {
+    this.container = container;
+    this.config = mergeConfig(defaultConfig, options);
+    if (this.config.autoDetect && isLowPowerDevice()) {
+      this.config = mergeConfig(this.config, this.config.lowPower);
+      this.lowPower = true;
+    }
+    this.disposed = false;
+    this.ready = false;
+    this._raf = 0;
+    this._visible = true;
+    this._pageVisible = true;
+    this._pointerActive = false;
+    this._pointerNDC = new Vector2();
+    this._cursorTarget = new Vector3(0, 0, 0);
+    this._cursorSmoothed = new Vector3(0, 0, 0);
+    this._cursorPrev = new Vector3(0, 0, 0);
+    this._cursorVel = new Vector2();
+    this._velScratch = new Vector2();
+    this._cursorMix = 0; // eases push strength in/out as the pointer enters/leaves
+    this._clock = { start: performance.now(), last: performance.now() };
+    this._fps = { frames: 0, t: performance.now(), value: 0 };
+    this._listeners = [];
+    this._init();
+  }
+
+  // ----------------------------------------------------------------------------------
+  // Setup
+  // ----------------------------------------------------------------------------------
+  _init() {
+    const cfg = this.config;
+    const c = this.container;
+    if (getComputedStyle(c).position === 'static') c.style.position = 'relative';
+
+    let renderer;
+    try {
+      // With post-processing on, MSAA happens on the composer target instead of the canvas.
+      renderer = new WebGLRenderer({ antialias: !cfg.post.enabled, alpha: cfg.background === null, powerPreference: 'high-performance', stencil: false });
+    } catch (e) {
+      this._fail('WebGL is not available', e);
+      return;
+    }
+    this.renderer = renderer;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, cfg.dprCap));
+    renderer.outputColorSpace = SRGBColorSpace;
+    renderer.toneMapping = ACESFilmicToneMapping;
+    renderer.toneMappingExposure = cfg.toneMappingExposure;
+    const shadowSize = SHADOW_MAP_SIZES[cfg.shadows] ?? 2048;
+    renderer.shadowMap.enabled = shadowSize > 0;
+    renderer.shadowMap.type = PCFShadowMap;
+    if (cfg.background === null) renderer.setClearColor(0x000000, 0);
+    else if (cfg.background !== 'hdri') renderer.setClearColor(new Color(cfg.background), 1);
+
+    const canvas = renderer.domElement;
+    canvas.style.cssText = 'display:block;width:100%;height:100%;position:absolute;inset:0;touch-action:none;';
+    canvas.setAttribute('aria-hidden', 'true');
+    c.appendChild(canvas);
+    this.canvas = canvas;
+
+    this.scene = new Scene();
+    const cam = cfg.camera;
+    this.camera = new PerspectiveCamera(cam.fov, 1, cam.near, cam.far);
+    this.camera.position.fromArray(cam.position);
+    this.camera.lookAt(new Vector3().fromArray(cam.target));
+
+    this.groundPlane = new Plane(new Vector3(0, 1, 0), 0);
+    this.raycaster = new Raycaster();
+
+    this._buildUniforms();
+    this._buildLights();
+    this._buildGround();
+    this._buildFlowers();
+    this._buildGrass().then(() => {
+      if (this.disposed) return;
+      this._buildPost();
+      this._bindEvents();
+      this._resize();
+      this.ready = true;
+      this._loop();
+    });
+    this._loadEnvironment();
+    if (cfg.debug) this._buildDebugOverlay();
+  }
+
+  _fail(msg, err) {
+    console.warn('[grass-field]', msg, err || '');
+    this.container.dispatchEvent(new CustomEvent('grassfield:error', { detail: { message: msg, error: err } }));
+  }
+
+  _buildUniforms() {
+    const cfg = this.config;
+    const wd = new Vector2().fromArray(cfg.wind.direction).normalize();
+    this.flowerUniform = Array.from({ length: MAX_FLOWERS }, () => new Vector4(0, 0, 0, 0));
+    this.uniforms = {
+      uTime: { value: 0 },
+      uWindDir: { value: wd },
+      uWindSpeed: { value: cfg.wind.speed },
+      uWindStrength: { value: cfg.wind.strength },
+      uWindScale: { value: cfg.wind.scale },
+      uCursorPos: { value: new Vector3(0, 0, 0) },
+      uCursorRadius: { value: cfg.cursor.radius },
+      uCursorStrength: { value: 0 },
+      uCursorVel: { value: new Vector2() },
+      uFlowers: { value: this.flowerUniform },
+      uFlowerRadius: { value: cfg.flowers.radius },
+      uFlowerStrength: { value: cfg.flowers.strength },
+      // fragment
+      uRootColor: { value: new Color(cfg.colors.root) },
+      uTipColor: { value: new Color(cfg.colors.tip) },
+      uDryColor: { value: new Color(cfg.colors.dry) },
+      uColorVariance: { value: cfg.colors.variance },
+      uRootAO: { value: cfg.colors.rootAO },
+      uSSSColor: { value: new Color(cfg.colors.sss) },
+      uSSSStrength: { value: cfg.colors.sssStrength },
+      uSSSPower: { value: cfg.colors.sssPower },
+      uPetalColors: { value: cfg.flowers.petalColors.slice(0, 4).map((h) => new Color(h)) },
+      uCenterColor: { value: new Color(cfg.flowers.centerColor) },
+      uStemColor: { value: new Color(cfg.flowers.stemColor) },
+      uGroundColorA: { value: new Color(cfg.colors.groundA) },
+      uGroundColorB: { value: new Color(cfg.colors.groundB) },
+      uGroundScale: { value: 0.6 },
+    };
+    while (this.uniforms.uPetalColors.value.length < 4) this.uniforms.uPetalColors.value.push(new Color(cfg.flowers.petalColors[0]));
+  }
+
+  _buildLights() {
+    const cfg = this.config;
+    const s = cfg.sun;
+    const az = MathUtils.degToRad(s.azimuth), el = MathUtils.degToRad(s.elevation);
+    const dir = new Vector3(Math.cos(el) * Math.cos(az), Math.sin(el), Math.cos(el) * Math.sin(az));
+    const sun = new DirectionalLight(new Color(s.color), s.intensity);
+    sun.position.copy(dir).multiplyScalar(12);
+    sun.target.position.set(0, 0, 0);
+    this.scene.add(sun, sun.target);
+    const shadowSize = SHADOW_MAP_SIZES[cfg.shadows] ?? 2048;
+    if (shadowSize > 0) {
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(shadowSize, shadowSize);
+      const [w, d] = cfg.fieldSize;
+      const half = Math.max(w, d) * 0.62;
+      const sc = sun.shadow.camera;
+      sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half;
+      sc.near = 1; sc.far = 30;
+      sun.shadow.bias = -0.0006;
+      sun.shadow.normalBias = 0.02;
+      sun.shadow.radius = 3;
+    }
+    this.sun = sun;
+  }
+
+  _injectField(shader, vertPars = '', fragPars = '') {
+    // Shares wind/cursor/flower uniforms and the noise library with any material.
+    // Order matters: noise -> field helpers -> material-specific helpers.
+    Object.assign(shader.uniforms, this.uniforms);
+    shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\n${noiseGLSL}\n${fieldParsVert}\n${vertPars}`);
+    if (fragPars) shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\n${fragPars}`);
+  }
+
+  _buildGround() {
+    const cfg = this.config;
+    const [w, d] = cfg.fieldSize;
+    const geo = new PlaneGeometry(w * 1.4, d * 1.4, 1, 1);
+    geo.rotateX(-Math.PI / 2);
+    const mat = new MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0 });
+    mat.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, this.uniforms);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vGroundWorld;')
+        .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvGroundWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>\n${noiseGLSL}\n${groundParsFrag}`)
+        .replace('#include <color_fragment>', `#include <color_fragment>\n${groundColorFrag}`);
+    };
+    const ground = new Mesh(geo, mat);
+    ground.receiveShadow = true;
+    ground.position.y = -0.005;
+    this.scene.add(ground);
+    this.ground = ground;
+  }
+
+  async _buildGrass() {
+    const cfg = this.config;
+    let mask = null;
+    if (cfg.mask) {
+      try { mask = await createMask(cfg.mask, cfg.fieldSize); }
+      catch (e) { this._fail('Mask could not be rasterised; falling back to a full field', e); }
+    }
+    if (this.disposed) return;
+
+    const { matrices, bladeData, count } = scatterBlades({
+      count: cfg.instanceCount, fieldSize: cfg.fieldSize, bladeHeight: cfg.bladeHeight,
+      clustering: cfg.clustering, seed: cfg.seed, mask,
+    });
+
+    const geo = createBladeGeometry({ width: cfg.bladeWidth });
+    geo.setAttribute('aBladeData', new InstancedBufferAttribute(bladeData, 4));
+
+    const mat = new MeshPhysicalMaterial({
+      color: 0xffffff,
+      roughness: 0.62,
+      metalness: 0,
+      side: DoubleSide,
+      sheen: 0.35,
+      sheenRoughness: 0.6,
+      sheenColor: new Color('#b7d96b'),
+      specularIntensity: 0.55,
+      envMapIntensity: cfg.envIntensity,
+    });
+    mat.onBeforeCompile = (shader) => {
+      this._injectField(shader, grassParsVert, grassParsFrag);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <beginnormal_vertex>', grassBeginNormalVert)
+        .replace('#include <begin_vertex>', grassBeginVert);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <color_fragment>', `#include <color_fragment>\n${grassColorFrag}`)
+        .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>\n${grassLightsFrag}`);
+    };
+    // Shader source changes after compile are keyed by this so three re-links correctly.
+    mat.customProgramCacheKey = () => 'grass-field-blade';
+
+    const mesh = new InstancedMesh(geo, mat, count);
+    mesh.instanceMatrix.array.set(matrices);
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.frustumCulled = false; // one draw call covering the whole field; culling would be per-mesh anyway
+    const [w, d] = cfg.fieldSize;
+    geo.boundingSphere = new Sphere(new Vector3(0, 0.4, 0), Math.hypot(w, d) * 0.5 + 1);
+
+    // Shadow-map depth pass must bend identically or shadows won't follow the blades.
+    const depth = new MeshDepthMaterial({ depthPacking: RGBADepthPacking, side: DoubleSide });
+    depth.onBeforeCompile = (shader) => {
+      this._injectField(shader, grassParsVert);
+      shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', grassBeginVert);
+    };
+    depth.customProgramCacheKey = () => 'grass-field-blade-depth';
+    mesh.customDepthMaterial = depth;
+
+    // Bending-aware normal material for the ambient-occlusion pre-pass (see postfx.js).
+    const nrm = new MeshNormalMaterial({ side: DoubleSide, blending: NoBlending });
+    nrm.onBeforeCompile = (shader) => {
+      this._injectField(shader, grassParsVert);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <beginnormal_vertex>', grassBeginNormalVert)
+        .replace('#include <begin_vertex>', grassBeginVert);
+    };
+    nrm.customProgramCacheKey = () => 'grass-field-blade-normal';
+    mesh.userData.normalMaterial = nrm;
+
+    this.scene.add(mesh);
+    this.grass = mesh;
+    this.bladeCount = count;
+  }
+
+  _buildFlowers() {
+    const cfg = this.config;
+    const max = Math.min(cfg.flowers.max, MAX_FLOWERS);
+    const geo = createFlowerGeometry();
+    // The pool owns this array and rewrites it every frame; the attribute uploads it.
+    const stateArray = new Float32Array(max * 4);
+    const states = new InstancedBufferAttribute(stateArray, 4);
+    states.setUsage(DynamicDrawUsage);
+    geo.setAttribute('aFlowerState', states);
+
+    const mat = new MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0, side: DoubleSide, envMapIntensity: cfg.envIntensity });
+    mat.onBeforeCompile = (shader) => {
+      this._injectField(shader, flowerParsVert, flowerParsFrag);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <beginnormal_vertex>', flowerBeginNormalVert)
+        .replace('#include <begin_vertex>', flowerBeginVert);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <color_fragment>', `#include <color_fragment>\n${flowerColorFrag}`);
+    };
+    mat.customProgramCacheKey = () => 'grass-field-flower';
+
+    const mesh = new InstancedMesh(geo, mat, max);
+    const zero = new Matrix4().makeScale(0, 0, 0);
+    for (let i = 0; i < max; i++) mesh.setMatrixAt(i, zero);
+    mesh.instanceMatrix.setUsage(DynamicDrawUsage);
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.frustumCulled = false;
+
+    const depth = new MeshDepthMaterial({ depthPacking: RGBADepthPacking, side: DoubleSide });
+    depth.onBeforeCompile = (shader) => {
+      this._injectField(shader, flowerParsVert);
+      shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', flowerBeginVert);
+    };
+    depth.customProgramCacheKey = () => 'grass-field-flower-depth';
+    mesh.customDepthMaterial = depth;
+
+    const nrm = new MeshNormalMaterial({ side: DoubleSide, blending: NoBlending });
+    nrm.onBeforeCompile = (shader) => {
+      this._injectField(shader, flowerParsVert);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <beginnormal_vertex>', flowerBeginNormalVert)
+        .replace('#include <begin_vertex>', flowerBeginVert);
+    };
+    nrm.customProgramCacheKey = () => 'grass-field-flower-normal';
+    mesh.userData.normalMaterial = nrm;
+
+    this.scene.add(mesh);
+    this.flowerMesh = mesh;
+    this.flowerPool = new FlowerPool(cfg.flowers, createRng(cfg.seed ^ 0x9e3779b9), mesh, this.flowerUniform, stateArray);
+  }
+
+  _loadEnvironment() {
+    const cfg = this.config;
+    let url = cfg.assets.hdri;
+    if (!url) {
+      if (import.meta.env?.DEV) url = '/hdri/meadow-sky.hdr'; // vite dev server serves ./public
+      else {
+        // Production: the .hdr is expected next to the bundle (dist/hdri/), wherever it is hosted.
+        try { url = new URL(/* @vite-ignore */ './hdri/meadow-sky.hdr', import.meta.url).href; }
+        catch { url = './hdri/meadow-sky.hdr'; }
+      }
+    }
+    const pmrem = new PMREMGenerator(this.renderer);
+    pmrem.compileEquirectangularShader();
+    new HDRLoader().load(url, (tex) => {
+      if (this.disposed) { tex.dispose(); pmrem.dispose(); return; }
+      tex.mapping = EquirectangularReflectionMapping;
+      const env = pmrem.fromEquirectangular(tex).texture;
+      this.scene.environment = env;
+      this.scene.environmentIntensity = cfg.envIntensity;
+      if (cfg.background === 'hdri') { this.scene.background = tex; this.scene.backgroundBlurriness = 0.05; }
+      else tex.dispose();
+      this.envTexture = env;
+      pmrem.dispose();
+      this.container.dispatchEvent(new CustomEvent('grassfield:ready'));
+    }, undefined, (err) => {
+      pmrem.dispose();
+      this._fail(`HDRI failed to load from ${url}; rendering with the sun light only`, err);
+    });
+  }
+
+  _buildPost() {
+    const { width, height } = this._size();
+    this.post = createPostFX(this.renderer, this.scene, this.camera, this.config.post, width, height);
+  }
+
+  _buildDebugOverlay() {
+    const el = document.createElement('div');
+    el.style.cssText = 'position:absolute;left:8px;top:8px;padding:4px 8px;font:12px/1.4 monospace;color:#fff;background:rgba(0,0,0,.55);border-radius:4px;pointer-events:none;z-index:2;white-space:pre;';
+    this.container.appendChild(el);
+    this.debugEl = el;
+  }
+
+  // ----------------------------------------------------------------------------------
+  // Events
+  // ----------------------------------------------------------------------------------
+  _on(target, type, fn, opts) {
+    target.addEventListener(type, fn, opts);
+    this._listeners.push(() => target.removeEventListener(type, fn, opts));
+  }
+
+  _bindEvents() {
+    const c = this.container;
+    this._on(c, 'pointermove', (e) => this._onPointer(e), { passive: true });
+    this._on(c, 'pointerdown', (e) => this._onPointer(e), { passive: true });
+    this._on(c, 'pointerenter', (e) => this._onPointer(e), { passive: true });
+    this._on(c, 'pointerleave', () => { this._pointerActive = false; }, { passive: true });
+    this._on(c, 'pointercancel', () => { this._pointerActive = false; }, { passive: true });
+    this._on(window, 'pointerup', (e) => { if (e.pointerType === 'touch') this._pointerActive = false; }, { passive: true });
+
+    this._ro = new ResizeObserver(() => this._resize());
+    this._ro.observe(c);
+
+    if (this.config.pauseWhenHidden) {
+      this._on(document, 'visibilitychange', () => {
+        this._pageVisible = document.visibilityState !== 'hidden';
+        this._clock.last = performance.now();
+        if (this._pageVisible) this._loop();
+      });
+      this._io = new IntersectionObserver((entries) => {
+        this._visible = entries[0]?.isIntersecting ?? true;
+        this._clock.last = performance.now();
+        if (this._visible) this._loop();
+      }, { threshold: 0 });
+      this._io.observe(c);
+    }
+    this._on(this.canvas, 'webglcontextlost', (e) => { e.preventDefault(); this._fail('WebGL context lost'); }, false);
+  }
+
+  _onPointer(e) {
+    const r = this.canvas.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return;
+    this._pointerNDC.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    this._pointerActive = true;
+    this._updateCursorTarget();
+  }
+
+  _updateCursorTarget() {
+    this.raycaster.setFromCamera(this._pointerNDC, this.camera);
+    const hit = this.raycaster.ray.intersectPlane(this.groundPlane, this._cursorTarget);
+    if (!hit) this._pointerActive = false;
+  }
+
+  _size() {
+    const r = this.container.getBoundingClientRect();
+    return { width: Math.max(1, Math.round(r.width)), height: Math.max(1, Math.round(r.height)) };
+  }
+
+  _resize() {
+    if (!this.renderer) return;
+    const { width, height } = this._size();
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.config.dprCap));
+    this.renderer.setSize(width, height, false);
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
+    this.post?.setSize(width, height);
+  }
+
+  // ----------------------------------------------------------------------------------
+  // Frame loop
+  // ----------------------------------------------------------------------------------
+  _loop() {
+    if (this.disposed || !this.ready) return;
+    cancelAnimationFrame(this._raf);
+    if (this.config.pauseWhenHidden && (!this._visible || !this._pageVisible)) return;
+    this._raf = requestAnimationFrame(() => { this._frame(); this._loop(); });
+  }
+
+  _frame() {
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - this._clock.last) / 1000);
+    this._clock.last = now;
+    const u = this.uniforms;
+    u.uTime.value = (now - this._clock.start) / 1000;
+
+    // Cursor: smooth toward the raycast target, ease influence in/out on enter/leave.
+    const cfg = this.config;
+    const k = 1 - Math.pow(1 - cfg.cursor.smoothing, dt * 60);
+    this._cursorPrev.copy(this._cursorSmoothed);
+    this._cursorSmoothed.lerp(this._cursorTarget, k);
+    const targetMix = this._pointerActive ? 1 : 0;
+    this._cursorMix += (targetMix - this._cursorMix) * (1 - Math.pow(this._pointerActive ? 0.8 : 0.9, dt * 60));
+    u.uCursorPos.value.copy(this._cursorSmoothed);
+    u.uCursorStrength.value = cfg.cursor.strength * this._cursorMix;
+    if (dt > 0) {
+      const vx = (this._cursorSmoothed.x - this._cursorPrev.x) / dt;
+      const vz = (this._cursorSmoothed.z - this._cursorPrev.z) / dt;
+      this._cursorVel.lerp(this._velScratch.set(vx, vz).clampLength(0, 3), 0.25);
+    }
+    u.uCursorVel.value.copy(this._cursorVel);
+
+    // Flowers
+    this.flowerPool.update(now, this._pointerActive ? this._cursorSmoothed : null, this._pointerActive);
+
+    if (this.post) this.post.render();
+    else this.renderer.render(this.scene, this.camera);
+
+    if (this.debugEl) {
+      const f = this._fps;
+      f.frames++;
+      if (now - f.t > 500) {
+        f.value = Math.round((f.frames * 1000) / (now - f.t));
+        f.frames = 0; f.t = now;
+        this.debugEl.textContent =
+          `${f.value} fps  blades:${this.bladeCount}  flowers:${this.flowerPool.liveCount}\n` +
+          `post:${this.post ? 'on' : 'off'}  shadows:${cfg.shadows}  dpr:${this.renderer.getPixelRatio().toFixed(2)}${this.lowPower ? '  (low-power)' : ''}`;
+      }
+    }
+  }
+
+  // ----------------------------------------------------------------------------------
+  // Public API
+  // ----------------------------------------------------------------------------------
+  /** Update tunables at runtime (wind, cursor, colours, exposure). Structural keys need a remount. */
+  setOptions(partial) {
+    const cfg = this.config = mergeConfig(this.config, partial);
+    const u = this.uniforms;
+    if (partial.wind) {
+      u.uWindDir.value.fromArray(cfg.wind.direction).normalize();
+      u.uWindSpeed.value = cfg.wind.speed; u.uWindStrength.value = cfg.wind.strength; u.uWindScale.value = cfg.wind.scale;
+    }
+    if (partial.cursor) u.uCursorRadius.value = cfg.cursor.radius;
+    if (partial.flowers) { u.uFlowerRadius.value = cfg.flowers.radius; u.uFlowerStrength.value = cfg.flowers.strength; Object.assign(this.flowerPool.cfg, cfg.flowers); }
+    if (partial.colors) {
+      u.uRootColor.value.set(cfg.colors.root); u.uTipColor.value.set(cfg.colors.tip); u.uDryColor.value.set(cfg.colors.dry);
+      u.uColorVariance.value = cfg.colors.variance; u.uRootAO.value = cfg.colors.rootAO;
+      u.uSSSColor.value.set(cfg.colors.sss); u.uSSSStrength.value = cfg.colors.sssStrength; u.uSSSPower.value = cfg.colors.sssPower;
+    }
+    if (partial.toneMappingExposure !== undefined) this.renderer.toneMappingExposure = cfg.toneMappingExposure;
+    if (partial.post && this.ready) { this.post?.dispose(); this._buildPost(); }
+  }
+
+  dispose() {
+    if (this.disposed) return;
+    this.disposed = true;
+    cancelAnimationFrame(this._raf);
+    for (const off of this._listeners) off();
+    this._listeners.length = 0;
+    this._ro?.disconnect();
+    this._io?.disconnect();
+    this.post?.dispose();
+    this.scene?.traverse((obj) => {
+      obj.geometry?.dispose?.();
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const m of mats) m?.dispose?.();
+      obj.customDepthMaterial?.dispose?.();
+      obj.userData?.normalMaterial?.dispose?.();
+    });
+    this.envTexture?.dispose();
+    this.scene?.background?.dispose?.();
+    if (this.sun?.shadow?.map) this.sun.shadow.map.dispose();
+    if (this.renderer) {
+      this.renderer.dispose();
+      this.renderer.forceContextLoss();
+      this.renderer.domElement.remove();
+    }
+    this.debugEl?.remove();
+    this.renderer = null;
+    this.scene = null;
+  }
+}

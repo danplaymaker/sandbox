@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grass Field — dev</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #0d1210; color: #cfd8d3; font: 14px/1.4 system-ui, sans-serif; }
+    #grass { width: 100vw; height: 100vh; background: linear-gradient(#7fb2e6, #dfeaf3 60%, #9fb586); }
+    .hint { position: fixed; right: 12px; bottom: 12px; padding: 6px 10px; background: rgba(0,0,0,.5); border-radius: 6px; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div id="grass"></div>
+  <div class="hint">Move the pointer over the field · ?post=0 ?count=30000 ?shadows=off ?dof=1 ?mask=HELLO ?bg=hdri</div>
+  <script type="module">
+    import { mount } from '/src/index.js';
+    const q = new URLSearchParams(location.search);
+    const opts = { debug: true };
+    if (q.has('count')) opts.instanceCount = Number(q.get('count'));
+    if (q.has('post')) opts.post = { enabled: q.get('post') !== '0' };
+    if (q.has('ao')) opts.post = { ...(opts.post || {}), ao: q.get('ao') !== '0' };
+    if (q.has('dof')) opts.post = { ...(opts.post || {}), dof: q.get('dof') === '1' };
+    if (q.has('shadows')) opts.shadows = q.get('shadows');
+    if (q.has('mask')) opts.mask = { text: q.get('mask'), font: '900 sans-serif' };
+    if (q.get('cam') === 'top') opts.camera = { position: [0, 7.5, 6.5], target: [0, 0, -0.3], fov: 34 };
+    if (q.has('bg')) opts.background = q.get('bg');
+    if (q.has('lowpower')) opts.autoDetect = false;
+    if (q.has('dpr')) opts.dprCap = Number(q.get('dpr'));
+    window.__field = mount(document.getElementById('grass'), opts);
+  </script>
+</body>
+</html>

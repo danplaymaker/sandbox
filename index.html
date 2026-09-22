@@ -32,6 +32,12 @@
       if (q.has('ground')) opts.shapeSource.ground = q.get('ground');
       if (q.has('feather')) opts.shapeSource.feather = Number(q.get('feather'));
       if (q.has('edgenoise')) opts.shapeSource.edgeNoise = Number(q.get('edgenoise'));
+      if (q.has('size')) opts.shapeSource.size = Number(q.get('size'));
+      if (q.has('threshold')) opts.shapeSource.threshold = Number(q.get('threshold'));
+      if (q.has('height')) opts.bladeHeight = q.get('height').split(',').map(Number);
+      if (q.has('width')) opts.bladeWidth = Number(q.get('width'));
+      if (q.has('cursor')) { const [r, st] = q.get('cursor').split(',').map(Number); opts.cursor = { radius: r, strength: st }; }
+      if (q.has('flower')) { const [r, hs] = q.get('flower').split(',').map(Number); opts.flowers = { radius: r, headScale: hs, strength: 0.7 }; }
       if (q.has('lean')) opts.bladeLean = q.get('lean').split(',').map(Number);
       if (q.has('sunel')) opts.sun = { elevation: Number(q.get('sunel')) };
     }

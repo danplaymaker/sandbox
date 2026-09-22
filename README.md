@@ -161,6 +161,30 @@ How it works (`src/shape.js`):
 - Flowers spawn only where `mask.coverage ≥ 0.5` at the cursor. The rasterised mask is
   shared between the scatter, the ground shader and the flower pool; it is never re-rasterised.
 
+Worked example, the CREATIVE wordmark (`public/shapes/creative.svg`, eight outlined letter
+paths, 1648×619, strokes down to 4% of the height):
+
+```js
+mount('#grass-field', {
+  shapeSource: { svg: 'https://…/shapes/creative.svg', size: 24, feather: 0.01, edgeNoise: 0.25 },
+  bladeHeight: [0.22, 0.5],           // shorter grass keeps thin strokes and counters legible
+  cursor: { radius: 1.7, strength: 0.7 },
+  flowers: { radius: 1.3, strength: 0.7, headScale: 2.4 },
+  instanceCount: 60000,
+});
+```
+
+Why these values: at the default `size` 12 the C's stroke is 0.19 world units, thinner than a
+blade is tall, so the letters blur into a ribbon; `size` 24 makes it 0.38 units and the letters
+hold. The default `feather` (3.5% of the long edge, 36 px of blur at 1024 px) is wider than the
+16 px stroke and pushes it under the threshold, so `feather` drops to 0.01. Shorter blades
+(0.22–0.5) keep the counters of the R and A open; the taller default reads fine for the outer
+outline but fills them in. Cursor and flower radii scale up with the field so the parting stays
+visible at this size. Going to `size` 30 with 0.2–0.42 blades is crisper still but starts to
+read as a noise texture rather than grass.
+
+![CREATIVE wordmark as grass](docs/field-creative.jpg)
+
 Camera and lighting for the top-down view:
 
 - `camera.type: 'orthographic'`, tilted `camera.tilt` = **8°** off vertical toward +Z. From
